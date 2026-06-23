@@ -53,16 +53,20 @@
   function navigateTo(pageId) {
     if (!pages[pageId]) return;
 
-    Object.values(pages).forEach((p) => p?.classList.remove('active'));
-    pages[pageId]?.classList.add('active');
+    Object.values(pages).forEach((p) => {
+      if (p) p.classList.remove('active');
+    });
+    if (pages[pageId]) pages[pageId].classList.add('active');
 
     document.querySelectorAll('.nav-link').forEach((link) => {
       link.classList.toggle('active', link.dataset.nav === pageId);
     });
 
-    mainNav?.classList.remove('open');
-    navToggle?.classList.remove('open');
-    navToggle?.setAttribute('aria-expanded', 'false');
+    if (mainNav) mainNav.classList.remove('open');
+    if (navToggle) {
+      navToggle.classList.remove('open');
+      navToggle.setAttribute('aria-expanded', 'false');
+    }
 
     if (pageId === 'mises-a-jour' && !updatesLoaded) loadUpdates();
     if (pageId === 'info-du-jeu' && !datacentersLoaded) renderDatacenters();
@@ -85,11 +89,13 @@
 
   window.addEventListener('hashchange', handleRoute);
 
-  navToggle?.addEventListener('click', () => {
-    const open = mainNav?.classList.toggle('open');
-    navToggle?.classList.toggle('open', open);
-    navToggle?.setAttribute('aria-expanded', String(open));
-  });
+  if (navToggle && mainNav) {
+    navToggle.addEventListener('click', () => {
+      const open = mainNav.classList.toggle('open');
+      navToggle.classList.toggle('open', open);
+      navToggle.setAttribute('aria-expanded', String(open));
+    });
+  }
 
   /* ── Cursor halo ── */
   const halo = document.getElementById('cursor-halo');
