@@ -13,7 +13,6 @@
       provider: 'Hetzner'
     },
     {
-    {
       host: 'menu1.multicraft.network',
       location: 'Nuremberg, Allemagne',
       provider: 'Hetzner'
