@@ -44,6 +44,7 @@
     accueil: document.getElementById('page-accueil'),
     'mises-a-jour': document.getElementById('page-mises-a-jour'),
     'info-du-jeu': document.getElementById('page-info-du-jeu'),
+    'info-du-site': document.getElementById('page-info-du-site'),
   };
 
   const navLinks = document.querySelectorAll('[data-nav]');
