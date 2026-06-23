@@ -48,6 +48,7 @@
   const pages = {
     accueil: document.getElementById('page-accueil'),
     'mises-a-jour': document.getElementById('page-mises-a-jour'),
+    serveurs: document.getElementById('page-serveurs'),
     'info-du-jeu': document.getElementById('page-info-du-jeu'),
     'info-du-site': document.getElementById('page-info-du-site'),
   };
@@ -80,6 +81,7 @@
 
     if (pageId === 'mises-a-jour' && !updatesLoaded) loadUpdates();
     if (pageId === 'info-du-jeu' && !datacentersLoaded) renderDatacenters();
+    if (pageId === 'serveurs' && !serversLoaded) loadServers();
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -406,6 +408,206 @@ function initCursorHalo() {
     datacentersLoaded = true;
   }
 
+  /* ── Serveurs (API live) ── */
+  const SERVERS_API_URL = 'https://multicraft-api.creatif-france.workers.dev/';
+
+  let serversLoaded = false;
+  let allServers = [];
+  const serversContainer = document.getElementById('servers-container');
+  const serverSearchInput = document.getElementById('server-search');
+  const serversCountEl = document.getElementById('servers-count');
+
+  /* L'API renvoie un objet contenant plusieurs listes (favorites, nearby, ...).
+     On parcourt récursivement la réponse pour récupérer tous les serveurs
+     (identifiés par leur "server_id"), peu importe sous quelle clé ils se trouvent,
+     et on retire les doublons. */
+  function extractServers(data) {
+    const found = new Map();
+
+    function walk(node) {
+      if (!node || typeof node !== 'object') return;
+      if (Array.isArray(node)) {
+        node.forEach(walk);
+        return;
+      }
+      if (node.server_id) {
+        if (!found.has(node.server_id)) found.set(node.server_id, node);
+        return;
+      }
+      Object.keys(node).forEach(function(key) { walk(node[key]); });
+    }
+
+    walk(data);
+
+    return Array.from(found.values()).sort(function(a, b) {
+      const aOnline = a.online ? 1 : 0;
+      const bOnline = b.online ? 1 : 0;
+      if (aOnline !== bOnline) return bOnline - aOnline;
+      return (b.connected_players || 0) - (a.connected_players || 0);
+    });
+  }
+
+  function countLabel(n) {
+    return n + (n === 1 ? ' serveur' : ' serveurs');
+  }
+
+  function renderServerCard(server) {
+    const online = !!server.online;
+    const players = (online ? (server.connected_players || 0) : 0) + ' / ' + (server.max_players != null ? server.max_players : '?');
+    const description = server.description ? escapeHtml(server.description) : 'Aucune description disponible.';
+    const name = escapeHtml(server.server_name || 'Serveur sans nom');
+    const code = escapeHtml(server.server_id || '');
+
+    const discordBtn = server.url
+      ? '<a href="' + escapeHtml(server.url) + '" target="_blank" rel="noopener noreferrer" class="btn btn-discord">Discord</a>'
+      : '';
+
+    return (
+      '<article class="server-card">' +
+        '<div class="server-card-head">' +
+          '<h2 class="server-name">' + name + '</h2>' +
+          '<span class="server-players' + (online ? '' : ' offline') + '"><span class="dot"></span>' + players + '</span>' +
+        '</div>' +
+        '<p class="server-desc">' + description + '</p>' +
+        '<div class="server-actions">' +
+          discordBtn +
+          '<button type="button" class="btn btn-primary btn-join" data-name="' + name + '" data-code="' + code + '">Rejoindre</button>' +
+        '</div>' +
+      '</article>'
+    );
+  }
+
+  function bindServerCardActions() {
+    if (!serversContainer) return;
+    serversContainer.querySelectorAll('.btn-join').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        openServerModal(btn.dataset.name, btn.dataset.code);
+      });
+    });
+  }
+
+  function renderServers(list) {
+    if (!serversContainer) return;
+
+    if (!list.length) {
+      serversContainer.innerHTML = '<div class="empty-state"><p>Aucun serveur ne correspond à votre recherche.</p></div>';
+    } else {
+      serversContainer.innerHTML = list.map(renderServerCard).join('');
+      bindServerCardActions();
+    }
+
+    if (serversCountEl) serversCountEl.textContent = countLabel(list.length);
+  }
+
+  function filterServers(query) {
+    const q = query.trim().toLowerCase();
+    if (!q) return allServers;
+    return allServers.filter(function(s) {
+      return (
+        (s.server_name && s.server_name.toLowerCase().indexOf(q) !== -1) ||
+        (s.description && s.description.toLowerCase().indexOf(q) !== -1) ||
+        (s.admin_name && s.admin_name.toLowerCase().indexOf(q) !== -1)
+      );
+    });
+  }
+
+  async function loadServers() {
+    try {
+      const res = await fetch(SERVERS_API_URL);
+      if (!res.ok) throw new Error('Réponse API invalide (' + res.status + ')');
+      const data = await res.json();
+
+      allServers = extractServers(data);
+      serversLoaded = true;
+      renderServers(filterServers(serverSearchInput ? serverSearchInput.value : ''));
+    } catch (err) {
+      console.error(err);
+      if (serversContainer) {
+        serversContainer.innerHTML =
+          '<div class="error-state"><p>Impossible de charger la liste des serveurs.</p>' +
+          '<p style="margin-top:0.5rem;font-size:0.85rem;color:var(--text-dim)">Vérifiez votre connexion et réessayez dans un instant.</p></div>';
+      }
+      if (serversCountEl) serversCountEl.textContent = '';
+    }
+  }
+
+  if (serverSearchInput) {
+    serverSearchInput.addEventListener('input', function() {
+      if (!serversLoaded) return;
+      renderServers(filterServers(serverSearchInput.value));
+    });
+  }
+
+  /* ── Pop-up "Rejoindre" ── */
+  const serverModal = document.getElementById('server-modal');
+  const modalServerName = document.getElementById('modal-server-name');
+  const modalCode = document.getElementById('modal-code');
+  const modalCopyBtn = document.getElementById('modal-copy-btn');
+  const modalCloseBtn = document.getElementById('modal-close-btn');
+  const modalCloseBtn2 = document.getElementById('modal-close-btn-2');
+  let modalCopyResetTimer = null;
+
+  function openServerModal(name, code) {
+    if (!serverModal) return;
+    if (modalServerName) modalServerName.textContent = name || 'Serveur';
+    if (modalCode) modalCode.textContent = code || '—';
+    if (modalCopyBtn) modalCopyBtn.textContent = 'Copier';
+    serverModal.hidden = false;
+    document.body.classList.add('modal-open');
+  }
+
+  function closeServerModal() {
+    if (!serverModal) return;
+    serverModal.hidden = true;
+    document.body.classList.remove('modal-open');
+  }
+
+  function fallbackCopyText(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) { /* ignore */ }
+    document.body.removeChild(ta);
+  }
+
+  if (modalCopyBtn) {
+    modalCopyBtn.addEventListener('click', function() {
+      const code = modalCode ? modalCode.textContent : '';
+      if (!code) return;
+
+      function showCopied() {
+        modalCopyBtn.textContent = 'Copié ✓';
+        clearTimeout(modalCopyResetTimer);
+        modalCopyResetTimer = setTimeout(function() { modalCopyBtn.textContent = 'Copier'; }, 1600);
+      }
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(showCopied).catch(function() {
+          fallbackCopyText(code);
+          showCopied();
+        });
+      } else {
+        fallbackCopyText(code);
+        showCopied();
+      }
+    });
+  }
+
+  if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeServerModal);
+  if (modalCloseBtn2) modalCloseBtn2.addEventListener('click', closeServerModal);
+  if (serverModal) {
+    serverModal.addEventListener('click', function(e) {
+      if (e.target === serverModal) closeServerModal();
+    });
+  }
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && serverModal && !serverModal.hidden) closeServerModal();
+  });
+
   /* ── Init ── */
   const footerYear = document.getElementById('footer-year');
   if (footerYear) footerYear.textContent = new Date().getFullYear();
@@ -414,4 +616,5 @@ function initCursorHalo() {
 
   if (location.hash === '#mises-a-jour') loadUpdates();
   if (location.hash === '#info-du-jeu') renderDatacenters();
+  if (location.hash === '#serveurs') loadServers();
 })();
