@@ -409,7 +409,7 @@ function initCursorHalo() {
   }
 
   /* ── Serveurs (API live) ── */
-  const SERVERS_API_URL = 'https://multicraft-api.creatif-france.workers.dev';
+  const SERVERS_API_URL = 'https://multicraft-servers.creatif-france.workers.dev';
 
   let serversLoaded = false;
   let allServers = [];
