@@ -92,6 +92,19 @@
           <input type="search" id="server-search" placeholder="Rechercher un serveur…"
             aria-label="Rechercher un serveur">
         </label>
+
+        <!-- Filtres -->
+        <div class="filters-group">
+          <select id="sort-players" class="filter-select" aria-label="Trier par nombre de joueurs">
+            <option value="desc">Joueurs ↓</option>
+            <option value="asc">Joueurs ↑</option>
+          </select>
+
+          <select id="filter-country" class="filter-select" aria-label="Filtrer par pays">
+            <option value="all">🌍 Tous les pays</option>
+          </select>
+        </div>
+
         <span id="servers-count" class="servers-count"></span>
       </div>
 

@@ -413,9 +413,125 @@
 
   let serversLoaded = false;
   let allServers = [];
+  let filteredServers = [];
   const serversContainer = document.getElementById('servers-container');
   const serverSearchInput = document.getElementById('server-search');
   const serversCountEl = document.getElementById('servers-count');
+  const sortPlayersSelect = document.getElementById('sort-players');
+  const filterCountrySelect = document.getElementById('filter-country');
+
+  function getServerCountry(server) {
+    const text = (server.description || '') + ' ' + (server.server_name || '');
+    const lowerText = text.toLowerCase();
+
+    const countryPatterns = {
+      'France': ['france', 'fr ', 'paris', 'lyon', 'marseille', '🇫🇷'],
+      'Allemagne': ['allemagne', 'germany', 'de ', 'berlin', 'frankfurt', '🇩🇪'],
+      'États-Unis': ['usa', 'united states', 'amérique', 'new york', 'california', '🇺🇸', 'us '],
+      'Royaume-Uni': ['uk', 'united kingdom', 'angleterre', 'londres', '🇬🇧'],
+      'Canada': ['canada', 'quebec', 'toronto', '🇨🇦'],
+      'Australie': ['australia', 'sydney', 'melbourne', '🇦🇺'],
+      'Singapour': ['singapore', 'singapour', '🇸🇬'],
+      'Hong Kong': ['hong kong', '🇭🇰'],
+      'Finlande': ['finlande', 'finland', 'helsinki', '🇫🇮'],
+      'Pays-Bas': ['pays-bas', 'netherlands', 'naaldwijk', '🇳🇱'],
+      'Japon': ['japan', 'tokyo', 'japon', '🇯🇵'],
+      'Corée du Sud': ['korea', 'south korea', 'seoul', '🇰🇷'],
+      'Brésil': ['brazil', 'brésil', 'sao paulo', '🇧🇷'],
+      'Pologne': ['poland', 'pologne', 'warsaw', '🇵🇱'],
+      'Suède': ['sweden', 'suède', 'stockholm', '🇸🇪']
+    };
+
+    for (const [country, patterns] of Object.entries(countryPatterns)) {
+      for (const pattern of patterns) {
+        if (lowerText.includes(pattern)) {
+          return country;
+        }
+      }
+    }
+
+    return 'Autre';
+  }
+
+  function extractServerLocation(server) {
+    const text = (server.description || '') + ' ' + (server.server_name || '');
+    const lowerText = text.toLowerCase();
+
+    const locationPatterns = {
+      'Paris, France': ['paris', 'france'],
+      'Frankfurt, Allemagne': ['frankfurt', 'allemagne'],
+      'New York, USA': ['new york', 'usa'],
+      'Londres, Royaume-Uni': ['londres', 'uk'],
+      'Sydney, Australie': ['sydney', 'australie'],
+      'Singapour': ['singapore', 'singapour'],
+      'Hong Kong': ['hong kong'],
+      'Helsinki, Finlande': ['helsinki', 'finlande'],
+      'Naaldwijk, Pays-Bas': ['naaldwijk', 'pays-bas']
+    };
+
+    for (const [location, patterns] of Object.entries(locationPatterns)) {
+      let match = true;
+      for (const pattern of patterns) {
+        if (!lowerText.includes(pattern)) {
+          match = false;
+          break;
+        }
+      }
+      if (match) return location;
+    }
+
+    return null;
+  }
+
+  function updateCountryFilter() {
+    if (!filterCountrySelect) return;
+
+    const countries = new Set();
+    allServers.forEach(function (server) {
+      const country = getServerCountry(server);
+      countries.add(country);
+    });
+
+    const sortedCountries = Array.from(countries).sort();
+
+    filterCountrySelect.innerHTML = '<option value="all">🌍 Tous les pays</option>';
+    sortedCountries.forEach(function (country) {
+      const option = document.createElement('option');
+      option.value = country;
+      option.textContent = country;
+      filterCountrySelect.appendChild(option);
+    });
+  }
+
+  function applyFiltersAndSort() {
+    if (!allServers.length) return;
+
+    const searchQuery = serverSearchInput ? serverSearchInput.value : '';
+    const sortType = sortPlayersSelect ? sortPlayersSelect.value : 'desc';
+    const countryFilter = filterCountrySelect ? filterCountrySelect.value : 'all';
+
+    let filtered = filterServers(searchQuery);
+
+    if (countryFilter !== 'all') {
+      filtered = filtered.filter(function (server) {
+        return getServerCountry(server) === countryFilter;
+      });
+    }
+
+    filtered.sort(function (a, b) {
+      const aPlayers = a.online ? (a.connected_players || 0) : -1;
+      const bPlayers = b.online ? (b.connected_players || 0) : -1;
+
+      if (sortType === 'desc') {
+        return bPlayers - aPlayers;
+      } else {
+        return aPlayers - bPlayers;
+      }
+    });
+
+    filteredServers = filtered;
+    renderServers(filtered);
+  }
 
   /* L'API renvoie un objet contenant plusieurs listes (favorites, nearby, ...).
      On parcourt récursivement la réponse pour récupérer tous les serveurs
@@ -439,12 +555,7 @@
 
     walk(data);
 
-    return Array.from(found.values()).sort(function (a, b) {
-      const aOnline = a.online ? 1 : 0;
-      const bOnline = b.online ? 1 : 0;
-      if (aOnline !== bOnline) return bOnline - aOnline;
-      return (b.connected_players || 0) - (a.connected_players || 0);
-    });
+    return Array.from(found.values());
   }
 
   function countLabel(n) {
@@ -457,17 +568,26 @@
     const description = server.description ? escapeHtml(server.description) : 'Aucune description disponible.';
     const name = escapeHtml(server.server_name || 'Serveur sans nom');
     const code = escapeHtml(server.server_id || '');
+    const adminName = server.admin_name ? escapeHtml(server.admin_name) : '';
+    const country = getServerCountry(server);
+    const location = extractServerLocation(server) || country;
 
     const discordBtn = server.url
       ? '<a href="' + escapeHtml(server.url) + '" target="_blank" rel="noopener noreferrer" class="btn btn-discord">Discord</a>'
       : '';
 
+    const adminHtml = adminName ? '<div class="server-admin">👑 ' + adminName + '</div>' : '';
+
     return (
       '<article class="server-card">' +
       '<div class="server-card-head">' +
+      '<div class="server-name-wrapper">' +
       '<h2 class="server-name">' + name + '</h2>' +
+      '<span class="server-location">📍 ' + escapeHtml(location) + '</span>' +
+      '</div>' +
       '<span class="server-players' + (online ? '' : ' offline') + '"><span class="dot"></span>' + players + '</span>' +
       '</div>' +
+      adminHtml +
       '<p class="server-desc">' + description.substring(0, 100) + (description.length > 100 ? '...' : '') + '</p>' +
       '<div class="server-actions">' +
       discordBtn +
@@ -480,7 +600,6 @@
   function bindServerCardActions() {
     if (!serversContainer) return;
 
-    // Gérer les boutons Détails
     serversContainer.querySelectorAll('.btn-details').forEach(function (btn) {
       btn.addEventListener('click', function () {
         try {
@@ -508,7 +627,7 @@
 
   function filterServers(query) {
     const q = query.trim().toLowerCase();
-    if (!q) return allServers;
+    if (!q) return allServers.slice();
     return allServers.filter(function (s) {
       return (
         (s.server_name && s.server_name.toLowerCase().indexOf(q) !== -1) ||
@@ -526,9 +645,11 @@
 
       allServers = extractServers(data);
       serversLoaded = true;
-      renderServers(filterServers(serverSearchInput ? serverSearchInput.value : ''));
 
-      // Vérifier si un serveur est partagé dans l'URL
+      updateCountryFilter();
+      applyFiltersAndSort();
+
+      // Vérifier si un serveur est partagé dans l'URL APRÈS avoir chargé les serveurs
       handleServerShare();
     } catch (err) {
       console.error(err);
@@ -544,7 +665,21 @@
   if (serverSearchInput) {
     serverSearchInput.addEventListener('input', function () {
       if (!serversLoaded) return;
-      renderServers(filterServers(serverSearchInput.value));
+      applyFiltersAndSort();
+    });
+  }
+
+  if (sortPlayersSelect) {
+    sortPlayersSelect.addEventListener('change', function () {
+      if (!serversLoaded) return;
+      applyFiltersAndSort();
+    });
+  }
+
+  if (filterCountrySelect) {
+    filterCountrySelect.addEventListener('change', function () {
+      if (!serversLoaded) return;
+      applyFiltersAndSort();
     });
   }
 
@@ -561,7 +696,6 @@
   function openServerDetailsModal(server) {
     if (!serverModal) return;
 
-    // Remplir les informations du modal
     const name = server.server_name || 'Serveur sans nom';
     const description = server.description || 'Aucune description disponible.';
     const code = server.server_id || '';
@@ -572,12 +706,13 @@
     const ip = server.ip || 'Non disponible';
     const port = server.port || 'Non disponible';
     const url = server.url || null;
+    const adminName = server.admin_name || 'Non spécifié';
+    const country = getServerCountry(server);
+    const location = extractServerLocation(server) || country;
 
-    // Mettre à jour le contenu du modal
     if (modalServerName) modalServerName.textContent = name;
     if (modalCode) modalCode.textContent = code;
 
-    // Créer le contenu détaillé
     const modalBody = document.querySelector('.modal-body');
     if (modalBody) {
       modalBody.innerHTML = `
@@ -595,21 +730,28 @@
                     <span class="modal-info-label">👥 Joueurs</span>
                     <span class="modal-info-value">${players} / ${maxPlayers}</span>
                 </div>
+                <div class="modal-info-item">
+                    <span class="modal-info-label">👑 Administrateur</span>
+                    <span class="modal-info-value">${escapeHtml(adminName)}</span>
+                </div>
+                <div class="modal-info-item">
+                    <span class="modal-info-label">📍 Localisation</span>
+                    <span class="modal-info-value">${escapeHtml(location)}</span>
+                </div>
             </div>
             ${url ? `<div class="modal-discord-link"><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="btn btn-discord">Rejoindre Discord</a></div>` : ''}
         </div>
       `;
     }
 
-    // Afficher le modal
     serverModal.hidden = false;
     document.body.classList.add('modal-open');
 
-    // Mettre à jour le bouton de partage
     const shareBtn = document.getElementById('modal-share-btn');
     if (shareBtn) {
       shareBtn.onclick = function () {
-        const shareUrl = window.location.origin + window.location.pathname + '?server=' + encodeURIComponent(code);
+        // Le lien pointe vers la page serveurs avec le paramètre server
+        const shareUrl = window.location.origin + window.location.pathname + '#serveurs?server=' + encodeURIComponent(code);
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(shareUrl).then(function () {
             shareBtn.textContent = '✅ Lien copié !';
@@ -627,23 +769,43 @@
       };
     }
 
-    // Mettre à jour le titre du modal
     const modalEyebrow = document.querySelector('.modal-eyebrow');
     if (modalEyebrow) modalEyebrow.textContent = 'Informations du serveur';
   }
 
   // Gestion du paramètre ?server= dans l'URL
   function handleServerShare() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const serverId = urlParams.get('server');
+    // Récupérer le paramètre server depuis l'URL complète (hash ou search)
+    let serverId = null;
+
+    // Vérifier d'abord dans le hash (ex: #serveurs?server=xxx)
+    const hash = window.location.hash;
+    if (hash && hash.includes('?server=')) {
+      const hashParts = hash.split('?');
+      if (hashParts.length > 1) {
+        const params = new URLSearchParams(hashParts[1]);
+        serverId = params.get('server');
+      }
+    }
+
+    // Si pas trouvé dans le hash, vérifier dans le search
+    if (!serverId) {
+      const params = new URLSearchParams(window.location.search);
+      serverId = params.get('server');
+    }
+
     if (serverId && allServers.length > 0) {
       const server = allServers.find(function (s) {
         return s.server_id === serverId;
       });
       if (server) {
+        // S'assurer qu'on est sur la page serveurs
+        if (!document.getElementById('page-serveurs').classList.contains('active')) {
+          navigateTo('serveurs');
+        }
         setTimeout(function () {
           openServerDetailsModal(server);
-        }, 500);
+        }, 300);
       }
     }
   }
@@ -718,4 +880,19 @@
   if (location.hash === '#mises-a-jour') loadUpdates();
   if (location.hash === '#info-du-jeu') renderDatacenters();
   if (location.hash === '#serveurs') loadServers();
+
+  // Vérifier aussi si on arrive avec un paramètre server dans l'URL
+  // (même si on est sur une autre page, on va charger les serveurs et ouvrir le modal)
+  const urlParams = new URLSearchParams(window.location.search);
+  const hashParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
+  if (urlParams.get('server') || hashParams.get('server')) {
+    if (!document.getElementById('page-serveurs').classList.contains('active')) {
+      // On charge les serveurs et on gère le partage
+      if (!serversLoaded) {
+        loadServers();
+      } else {
+        handleServerShare();
+      }
+    }
+  }
 })();
