@@ -866,6 +866,17 @@ body.cursor-active #cursor-halo {
   box-shadow: 0 6px 20px rgba(88, 101, 242, 0.35);
 }
 
+.btn-players {
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.btn-players:hover {
+  background: rgba(56, 189, 248, 0.22);
+  box-shadow: 0 6px 20px rgba(56, 189, 248, 0.25);
+}
+
 .server-card:nth-child(1) {
   animation-delay: 0.05s;
 }
@@ -1182,6 +1193,98 @@ body.modal-open {
   word-break: break-all;
 }
 
+/* Styles pour la pop-up "Liste des joueurs" */
+.players-modal-box {
+  max-width: 440px;
+}
+
+.players-modal-count {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(74, 222, 128, 0.08);
+  color: var(--green);
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  margin-bottom: 1rem;
+  width: fit-content;
+}
+
+.players-search-bar {
+  margin-bottom: 1rem;
+  padding: 0.55rem 1rem;
+}
+
+.players-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  max-height: 50vh;
+  overflow-y: auto;
+  margin-bottom: 1.25rem;
+  padding-right: 0.25rem;
+}
+
+.players-list-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.players-list-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.players-list-container::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+}
+
+.player-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.8rem;
+  font-size: 0.92rem;
+  transition: border-color var(--transition);
+}
+
+.player-row:hover {
+  border-color: var(--border-strong);
+}
+
+.player-icon {
+  flex-shrink: 0;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.player-name {
+  color: var(--text);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  min-width: 0;
+  flex: 1;
+}
+
+.player-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72em;
+  font-weight: 700;
+  line-height: 1.4;
+  padding: 0.05em 0.4em;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  margin-right: 0.3em;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
 .modal-discord-link {
   margin-top: 0.5rem;
 }
@@ -1483,6 +1586,19 @@ body.modal-open {
     font-size: 0.85rem;
   }
 
+  .players-modal-box {
+    max-width: 100%;
+  }
+
+  .players-list-container {
+    max-height: 45vh;
+  }
+
+  .player-row {
+    padding: 0.5rem 0.65rem;
+    font-size: 0.85rem;
+  }
+
   .info-site-content {
     padding: 1.25rem;
   }
@@ -1632,4 +1748,4 @@ body.modal-open {
   #cursor-halo {
     display: none;
   }
-}
+  }
