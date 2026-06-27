@@ -76,7 +76,7 @@
 
   function getDiscordDisplayName(user) {
     if (!user) return '';
-    return user.global_name || user.username || ('Utilisateur#' + user.discriminator);
+    return user.global_name || user.username || (window.i18n.t('discord.user') + user.discriminator);
   }
 
   /* ── Discord OAuth2 (Authorization Code via Worker proxy) ── */
@@ -549,7 +549,7 @@
         .sort(function (a, b) { return new Date(b.date) - new Date(a.date); });
 
       if (valid.length === 0) {
-        updatesContainer.innerHTML = '<div class="empty-state"><p>Aucune mise à jour pour le moment.</p></div>';
+        updatesContainer.innerHTML = '<div class="empty-state"><p>' + window.i18n.t('updates.empty') + '</p></div>';
       } else {
         updatesContainer.innerHTML = valid.map(renderUpdatePost).join('');
         bindLightbox();
@@ -558,7 +558,7 @@
       updatesLoaded = true;
     } catch (err) {
       console.error(err);
-      updatesContainer.innerHTML = '<div class="error-state"><p>Impossible de charger les mises à jour.</p><p style="margin-top:0.5rem;font-size:0.85rem;color:var(--text-dim)">Servez le site via un serveur local (ex. <code>python -m http.server</code>).</p></div>';
+      updatesContainer.innerHTML = '<div class="error-state"><p>' + window.i18n.t('updates.error') + '</p><p style="margin-top:0.5rem;font-size:0.85rem;color:var(--text-dim)">' + window.i18n.t('updates.errorHint') + '</p></div>';
     }
   }
 
@@ -601,7 +601,7 @@
       const dc = DATACENTERS[i];
       html += '<article class="dc-card"><div class="dc-header"><span class="dc-name">' +
         escapeHtml(dc.host) + '</span></div><div class="dc-details"><div class="dc-row"><span class="dc-label">Localisation</span><span class="dc-value">' +
-        escapeHtml(dc.location) + '</span></div><div class="dc-row"><span class="dc-label">Hébergeur</span><span class="dc-value">' +
+        escapeHtml(window.i18n.loc(dc.location)) + '</span></div><div class="dc-row"><span class="dc-label">Hébergeur</span><span class="dc-value">' +
         escapeHtml(dc.provider) + '</span></div></div></article>';
     }
     dcContainer.innerHTML = html;
@@ -798,14 +798,14 @@
   }
 
   function countLabel(n) {
-    return n + (n === 1 ? ' serveur' : ' serveurs');
+    return n + ' ' + (n === 1 ? window.i18n.t('servers.count1') : window.i18n.t('servers.countN'));
   }
 
   function renderServerCard(server) {
     const online = !!server.online;
     const players = (online ? (server.connected_players || 0) : 0) + ' / ' + (server.max_players != null ? server.max_players : '?');
-    const description = server.description ? escapeHtml(server.description) : 'Aucune description disponible.';
-    const name = escapeHtml(server.server_name || 'Serveur sans nom');
+    const description = server.description ? escapeHtml(server.description) : window.i18n.t('servers.noDesc');
+    const name = escapeHtml(server.server_name || window.i18n.t('servers.noName'));
     const code = escapeHtml(server.server_id || '');
     const adminName = server.admin_name ? escapeHtml(server.admin_name) : '';
     const country = getServerCountry(server);
@@ -819,7 +819,7 @@
     const ratingHtml = server._avgRating != null
       ? '<span class="server-rating">★ ' + server._avgRating.toFixed(1)
         + ' <span class="server-rating-count">(' + server._reviewsCount + ')</span></span>'
-      : '<span class="server-rating server-rating-none">Aucun avis</span>';
+      : '<span class="server-rating server-rating-none">' + window.i18n.t('servers.noRating') + '</span>';
     const serverDataAttr = escapeHtml(JSON.stringify(server));
 
     return (
@@ -836,7 +836,7 @@
       '<p class="server-desc">' + description.substring(0, 100) + (description.length > 100 ? '...' : '') + '</p>' +
       '<div class="server-actions">' +
       discordBtn +
-      '<button type="button" class="btn btn-players" data-server="' + serverDataAttr + '">👥 Liste des joueurs</button>' +
+      '<button type="button" class="btn btn-players" data-server="' + serverDataAttr + '">' + window.i18n.t('servers.playersList') + '</button>' +
       '<button type="button" class="btn btn-primary btn-details" data-server="' + serverDataAttr + '">Détails</button>' +
       '</div>' +
       '</article>'
@@ -873,7 +873,7 @@
     if (!serversContainer) return;
 
     if (!list.length) {
-      serversContainer.innerHTML = '<div class="empty-state"><p>Aucun serveur ne correspond à votre recherche.</p></div>';
+      serversContainer.innerHTML = '<div class="empty-state"><p>' + window.i18n.t('servers.empty') + '</p></div>';
     } else {
       serversContainer.innerHTML = list.map(renderServerCard).join('');
       bindServerCardActions();
@@ -916,7 +916,7 @@
       console.error(err);
       if (serversContainer) {
         serversContainer.innerHTML =
-          '<div class="error-state"><p>Impossible de charger la liste des serveurs.</p>' +
+          '<div class="error-state"><p>' + window.i18n.t('servers.errorLoad') + '</p>' +
           '<p style="margin-top:0.5rem;font-size:0.85rem;color:var(--text-dim)">Vérifiez votre connexion et réessayez dans un instant.</p></div>';
       }
       if (serversCountEl) serversCountEl.textContent = '';
@@ -1018,7 +1018,7 @@
   }
 
   function buildAvgHtml(reviews) {
-    if (!reviews.length) return '<span class="reviews-no-badge">Aucun avis</span>';
+    if (!reviews.length) return '<span class="reviews-no-badge">' + window.i18n.t('reviews.noReviewsBadge') + '</span>';
     const avg = (reviews.reduce(function (s, r) { return s + r.rating; }, 0) / reviews.length).toFixed(1);
     return '<span class="reviews-avg-badge">★ ' + avg
       + ' <span class="reviews-count">(' + reviews.length + ' avis)</span></span>';
@@ -1026,7 +1026,7 @@
 
   function buildReviewCardsHtml(reviews) {
     if (!reviews.length) {
-      return '<p class="reviews-empty">Aucun avis pour l\'instant. Soyez le premier !</p>';
+      return '<p class="reviews-empty">' + window.i18n.t('reviews.noReviews') + '</p>';
     }
     return reviews.map(function (r) {
       const discordBadge = r.discord_user_id
@@ -1084,17 +1084,17 @@
       formHtml = '<div class="review-discord-prompt">'
         + '<svg width="18" height="18" viewBox="0 0 24 24" fill="#5865F2"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.03.054a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>'
         + '<span>Connectez-vous pour laisser un avis vérifié.</span>'
-        + '<button type="button" class="btn-discord-inline" id="review-discord-login-btn">Se connecter</button>'
+        + '<button type="button" class="btn-discord-inline" id="review-discord-login-btn">' + window.i18n.t('reviews.loginBtn') + '</button>'
         + '</div>';
     } else if (alreadyReviewed) {
-      formHtml = '<p class="review-already-done">✓ Vous avez déjà soumis un avis pour ce serveur récemment.</p>';
+      formHtml = '<p class="review-already-done">' + window.i18n.t('reviews.alreadyDone') + '</p>';
     } else {
       formHtml = '<div class="review-form" id="review-form-wrap">'
         + '<p class="review-form-title">Laisser un avis en tant que <strong style="color:var(--green-muted)">' + escapeHtml(getDiscordDisplayName(discordUser)) + '</strong></p>'
         + '<div class="review-form-fields">'
         + '<div class="review-form-row">'
         + '<div class="review-star-picker" data-selected="0">'
-        + '<span class="review-star-picker-label">Note :</span>'
+        + '<span class="review-star-picker-label">' + window.i18n.t('reviews.ratingLabel') + '</span>'
         + '<span class="star-pick" data-val="1">★</span>'
         + '<span class="star-pick" data-val="2">★</span>'
         + '<span class="star-pick" data-val="3">★</span>'
@@ -1102,7 +1102,7 @@
         + '<span class="star-pick" data-val="5">★</span>'
         + '</div>'
         + '</div>'
-        + '<textarea class="review-input review-text-input" placeholder="Votre commentaire (optionnel)" maxlength="280" rows="2"></textarea>'
+        + '<textarea class="review-input review-text-input" placeholder="' + window.i18n.t('reviews.placeholder') + '" maxlength="280" rows="2"></textarea>'
         + '<div class="review-form-footer">'
         + '<span class="review-char-count" id="review-char-count">0 / 280</span>'
         + '<button type="button" class="btn btn-primary review-submit-btn">Publier</button>'
@@ -1115,13 +1115,13 @@
     section.innerHTML =
       '<div class="reviews-divider"></div>'
       + '<div class="reviews-header">'
-      + '<h3 class="reviews-title">⭐ Avis de la communauté</h3>'
+      + '<h3 class="reviews-title">' + window.i18n.t('reviews.title') + '</h3>'
       + '<div class="reviews-header-right">'
-      + '<span class="reviews-avg-wrap"><span class="reviews-no-badge">Chargement…</span></span>'
+      + '<span class="reviews-avg-wrap"><span class="reviews-no-badge">' + window.i18n.t('reviews.loading') + '</span></span>'
       + '<select class="reviews-sort-select" id="reviews-sort-select" aria-label="Trier les avis">'
-      + '<option value="recent">Plus récents</option>'
-      + '<option value="desc">Note ↓</option>'
-      + '<option value="asc">Note ↑</option>'
+      + '<option value="recent">' + window.i18n.t('reviews.sortRecent') + '</option>'
+      + '<option value="desc">' + window.i18n.t('reviews.sortDesc') + '</option>'
+      + '<option value="asc">' + window.i18n.t('reviews.sortAsc') + '</option>'
       + '</select>'
       + '</div>'
       + '</div>'
@@ -1174,7 +1174,7 @@
             // Remplacer le form par un message de confirmation
             const form = document.getElementById('review-form-wrap');
             if (form) {
-              form.innerHTML = '<p class="review-success-msg">✓ Avis publié — merci !</p>';
+              form.innerHTML = '<p class="review-success-msg">' + window.i18n.t('reviews.success') + '</p>';
             }
             // Recharger la liste des avis
             return fetchReviews(serverId);
@@ -1187,8 +1187,8 @@
             submitBtn.disabled = false;
             submitBtn.textContent = 'Publier';
             const msg = err.message === 'already_reviewed'
-              ? 'Vous avez déjà laissé un avis pour ce serveur.'
-              : 'Erreur : ' + escapeHtml(err.message);
+              ? window.i18n.t('reviews.alreadyLeft')
+              : window.i18n.t('reviews.error') + escapeHtml(err.message);
             submitBtn.insertAdjacentHTML('afterend',
               '<p class="review-error-msg">' + msg + '</p>');
           });
@@ -1258,7 +1258,7 @@
   function openServerDetailsModal(server) {
     if (!serverModal) return;
 
-    const name = server.server_name || 'Serveur sans nom';
+    const name = server.server_name || window.i18n.t('servers.noName');
     const description = server.description || 'Aucune description disponible.';
     const code = server.server_id || '';
     const players = server.online ? (server.connected_players || 0) : 0;
@@ -1320,22 +1320,22 @@
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(shareUrl).then(function () {
             shareBtn.textContent = '✅ Lien copié !';
-            setTimeout(function () { shareBtn.textContent = '🔗 Partager'; }, 2000);
+            setTimeout(function () { shareBtn.textContent = window.i18n.t('modal.share'); }, 2000);
           }).catch(function () {
             fallbackCopyText(shareUrl);
             shareBtn.textContent = '✅ Lien copié !';
-            setTimeout(function () { shareBtn.textContent = '🔗 Partager'; }, 2000);
+            setTimeout(function () { shareBtn.textContent = window.i18n.t('modal.share'); }, 2000);
           });
         } else {
           fallbackCopyText(shareUrl);
           shareBtn.textContent = '✅ Lien copié !';
-          setTimeout(function () { shareBtn.textContent = '🔗 Partager'; }, 2000);
+          setTimeout(function () { shareBtn.textContent = window.i18n.t('modal.share'); }, 2000);
         }
       };
     }
 
     const modalEyebrow = document.querySelector('.modal-eyebrow');
-    if (modalEyebrow) modalEyebrow.textContent = 'Informations du serveur';
+    if (modalEyebrow) modalEyebrow.textContent = window.i18n.t('modal.serverInfo');
   }
 
   // Gestion du paramètre ?server= dans l'URL
@@ -1377,9 +1377,9 @@
 
   function openServerModal(name, code) {
     if (!serverModal) return;
-    if (modalServerName) modalServerName.textContent = name || 'Serveur';
+    if (modalServerName) modalServerName.textContent = name || window.i18n.t('modal.server');
     if (modalCode) modalCode.textContent = code || '—';
-    if (modalCopyBtn) modalCopyBtn.textContent = 'Copier';
+    if (modalCopyBtn) modalCopyBtn.textContent = window.i18n.t('modal.copy');
     serverModal.hidden = false;
     syncModalOpenState();
   }
@@ -1410,7 +1410,7 @@
       function showCopied() {
         modalCopyBtn.textContent = 'Copié ✓';
         clearTimeout(modalCopyResetTimer);
-        modalCopyResetTimer = setTimeout(function () { modalCopyBtn.textContent = 'Copier'; }, 1600);
+        modalCopyResetTimer = setTimeout(function () { modalCopyBtn.textContent = window.i18n.t('modal.copy'); }, 1600);
       }
 
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -1555,7 +1555,7 @@
     if (!playersListContainer) return;
 
     if (!players.length) {
-      playersListContainer.innerHTML = '<div class="empty-state"><p>Aucun joueur en ligne pour le moment.</p></div>';
+      playersListContainer.innerHTML = '<div class="empty-state"><p>' + window.i18n.t('modal.noPlayers') + '</p></div>';
       return;
     }
 
@@ -1565,7 +1565,7 @@
       : players;
 
     if (!list.length) {
-      playersListContainer.innerHTML = '<div class="empty-state"><p>Aucun joueur ne correspond à votre recherche.</p></div>';
+      playersListContainer.innerHTML = '<div class="empty-state"><p>' + window.i18n.t('modal.noPlayerMatch') + '</p></div>';
       return;
     }
 
@@ -1579,7 +1579,7 @@
   function openPlayersModal(server) {
     if (!playersModal) return;
 
-    const name = server.server_name || 'Serveur';
+    const name = server.server_name || window.i18n.t('modal.server');
     const serverId = server.server_id || '';
 
     if (playersModalTitle) playersModalTitle.textContent = name;
@@ -1588,14 +1588,14 @@
 
     if (playersModalCount) playersModalCount.textContent = '';
     if (playersListContainer) {
-      playersListContainer.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Chargement des joueurs…</p></div>';
+      playersListContainer.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>' + window.i18n.t('modal.loadingPlayers') + '</p></div>';
     }
 
     playersModal.hidden = false;
     syncModalOpenState();
 
     if (!serverId) {
-      playersListContainer.innerHTML = '<div class="error-state"><p>Code d\'invitation introuvable pour ce serveur.</p></div>';
+      playersListContainer.innerHTML = '<div class="error-state"><p>' + window.i18n.t('modal.noInviteCode') + '</p></div>';
       return;
     }
 
@@ -1616,7 +1616,7 @@
         currentPlayersList = players;
 
         if (playersModalCount) {
-          playersModalCount.textContent = players.length + ' / ' + max + ' joueur' + (max === 1 ? '' : 's') + ' en ligne';
+          playersModalCount.textContent = players.length + ' / ' + max + ' ' + (players.length === 1 ? window.i18n.t('modal.playerOnline1') : window.i18n.t('modal.playerOnlineN'));
         }
 
         renderPlayersList(players, playersSearchInput ? playersSearchInput.value : '');
@@ -1626,8 +1626,7 @@
         console.error(err);
         if (playersListContainer) {
           playersListContainer.innerHTML =
-            '<div class="error-state"><p>Impossible de charger la liste des joueurs.</p>' +
-            '<p style="margin-top:0.5rem;font-size:0.85rem;color:var(--text-dim)">Vérifiez votre connexion et réessayez dans un instant.</p></div>';
+            '<div class="error-state"><p>' + window.i18n.t('modal.errorPlayers') + '</p><p style="margin-top:0.5rem;font-size:0.85rem;color:var(--text-dim)">' + window.i18n.t('modal.errorPlayersHint') + '</p></div>';
         }
       });
   }
@@ -1656,6 +1655,33 @@
     if (e.key !== 'Escape') return;
     if (playersModal && !playersModal.hidden) { closePlayersModal(); return; }
     if (serverModal && !serverModal.hidden) closeServerModal();
+  });
+
+
+  /* ── Language change: re-render dynamic content ── */
+  document.addEventListener('langchange', function () {
+    // Re-render servers if loaded
+    if (serversLoaded) {
+      renderServers();
+    }
+    // Re-render updates if loaded
+    if (updatesLoaded && updatesContainer) {
+      // Reload fully to re-render with new lang
+      updatesLoaded = false;
+      serversLoaded = false;
+      loadUpdates();
+      loadServers();
+    }
+    // Re-render datacenters if visible
+    var dcPage = document.getElementById('page-info-du-jeu');
+    if (dcPage && dcPage.classList.contains('active')) {
+      renderDatacenters();
+    }
+    // Update copy button text if modal open
+    var modalCopyBtn = document.getElementById('modal-copy-btn');
+    if (modalCopyBtn && !modalCopyBtn._copied) {
+      modalCopyBtn.textContent = window.i18n.t('modal.copy');
+    }
   });
 
   /* ── Init ── */
