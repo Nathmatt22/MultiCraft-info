@@ -44,6 +44,211 @@
     }
   ];
 
+  /* ── Supabase (avis serveurs) ── */
+  // 👉 Remplacez ces deux valeurs par celles de votre projet Supabase
+  //    Supabase > Settings > API
+  const SUPABASE_URL = 'https://qxzvnxekjggjldezprec.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF4enZueGVramdnamxkZXpwcmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMzE3NjMsImV4cCI6MjA5NzgwNzc2M30.Qa-lxT8mYy2kejt2kiydOvDqCYNeAD6q1d1Ce56A5Rc';
+
+  const SUPABASE_HEADERS = {
+    'apikey': SUPABASE_ANON_KEY,
+    'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+    'Content-Type': 'application/json',
+  };
+
+  /* ── Discord OAuth2 (Authorization Code via Worker proxy) ── */
+  // 👉 Remplacez par le Client ID de votre application Discord
+  //    discord.com/developers/applications → votre app → OAuth2
+  const DISCORD_CLIENT_ID = 'VOTRE_CLIENT_ID_ICI';
+  // ⚠️  Doit correspondre EXACTEMENT à ce qui est enregistré dans Discord Developer Portal
+  //     Discord → OAuth2 → Redirects
+  const DISCORD_REDIRECT_URI = 'https://multicraft-info.netlify.app/';
+  const DISCORD_SCOPES = 'identify';
+
+  /* ── État de l'utilisateur Discord ── */
+  let discordUser = null; // { id, username, discriminator, avatar, global_name }
+
+  function getDiscordAvatarUrl(user) {
+    if (!user) return '';
+    if (user.avatar) {
+      return 'https://cdn.discordapp.com/avatars/' + user.id + '/' + user.avatar + '.png?size=64';
+    }
+    // Avatar par défaut Discord
+    const index = Number(BigInt(user.id) >> 22n) % 6;
+    return 'https://cdn.discordapp.com/embed/avatars/' + index + '.png';
+  }
+
+  function getDiscordDisplayName(user) {
+    if (!user) return '';
+    return user.global_name || user.username || ('Utilisateur#' + user.discriminator);
+  }
+
+  /* ── Discord OAuth2 (Authorization Code via Worker proxy) ── */
+  // Le client_secret vit uniquement dans le Worker Cloudflare — jamais ici.
+  const DISCORD_TOKEN_PROXY = 'https://discord-oauth-proxy.creatif-france.workers.dev/token';
+
+  /* ── Lancer le flux OAuth2 Discord ── */
+  async function startDiscordLogin() {
+    const state = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(12))))
+      .replace(/[^a-zA-Z0-9]/g, '');
+
+    sessionStorage.setItem('discord_oauth_state', state);
+
+    const params = new URLSearchParams({
+      client_id: DISCORD_CLIENT_ID,
+      redirect_uri: DISCORD_REDIRECT_URI,
+      response_type: 'code',
+      scope: DISCORD_SCOPES,
+      state: state,
+      prompt: 'none',
+    });
+
+    window.location.href = 'https://discord.com/api/oauth2/authorize?' + params.toString();
+  }
+
+  /* ── Échange du code via le Worker (client_secret côté Worker) ── */
+  async function exchangeCodeForToken(code) {
+    const res = await fetch(DISCORD_TOKEN_PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code,
+        redirect_uri: DISCORD_REDIRECT_URI,
+        client_id: DISCORD_CLIENT_ID,
+      }),
+    });
+    if (!res.ok) throw new Error('Erreur échange token (' + res.status + ')');
+    return res.json();
+  }
+
+  async function fetchDiscordUser(accessToken) {
+    const res = await fetch('https://discord.com/api/v10/users/@me', {
+      headers: { 'Authorization': 'Bearer ' + accessToken },
+    });
+    if (!res.ok) throw new Error('Erreur profil Discord (' + res.status + ')');
+    return res.json();
+  }
+
+  /* ── Persistance session ── */
+  function saveDiscordSession(user, accessToken, expiresAt) {
+    try {
+      localStorage.setItem('discord_session', JSON.stringify({ user, accessToken, expiresAt }));
+    } catch { /* ignore */ }
+  }
+
+  function loadDiscordSession() {
+    try {
+      const raw = localStorage.getItem('discord_session');
+      if (!raw) return null;
+      const session = JSON.parse(raw);
+      if (session.expiresAt && Date.now() > session.expiresAt) {
+        localStorage.removeItem('discord_session');
+        return null;
+      }
+      return session;
+    } catch { return null; }
+  }
+
+  function clearDiscordSession() {
+    localStorage.removeItem('discord_session');
+  }
+
+  /* ── Mise à jour de l'UI ── */
+  function updateDiscordUI() {
+    const loginBtn = document.getElementById('discord-login-btn');
+    const userInfo = document.getElementById('discord-user-info');
+    const avatarEl = document.getElementById('discord-avatar');
+    const usernameEl = document.getElementById('discord-username');
+
+    if (discordUser) {
+      if (loginBtn) loginBtn.style.display = 'none';
+      if (userInfo) {
+        userInfo.removeAttribute('hidden');
+        userInfo.style.display = 'flex';
+      }
+      if (avatarEl) {
+        avatarEl.src = getDiscordAvatarUrl(discordUser);
+        avatarEl.alt = getDiscordDisplayName(discordUser);
+      }
+      if (usernameEl) usernameEl.textContent = getDiscordDisplayName(discordUser);
+    } else {
+      if (loginBtn) loginBtn.style.display = '';
+      if (userInfo) {
+        userInfo.setAttribute('hidden', '');
+        userInfo.style.display = 'none';
+      }
+    }
+  }
+
+  /* ── Gestion du callback OAuth2 (code dans l'URL) ── */
+  async function handleDiscordCallback() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const state = urlParams.get('state');
+    const error = urlParams.get('error');
+
+    if (error) {
+      console.warn('Discord OAuth erreur :', error);
+      // Nettoyer l'URL
+      const cleanUrl = window.location.origin + window.location.pathname + window.location.hash;
+      history.replaceState(null, '', cleanUrl);
+      return;
+    }
+
+    if (!code) return;
+
+    const savedState = sessionStorage.getItem('discord_oauth_state');
+    sessionStorage.removeItem('discord_oauth_state');
+
+    if (!savedState || state !== savedState) {
+      console.error('Discord OAuth : état invalide (CSRF)');
+      const cleanUrl = window.location.origin + window.location.pathname + window.location.hash;
+      history.replaceState(null, '', cleanUrl);
+      return;
+    }
+
+    try {
+      const tokenData = await exchangeCodeForToken(code);
+      const user = await fetchDiscordUser(tokenData.access_token);
+      const expiresAt = Date.now() + (tokenData.expires_in || 604800) * 1000;
+
+      discordUser = user;
+      saveDiscordSession(user, tokenData.access_token, expiresAt);
+      updateDiscordUI();
+    } catch (err) {
+      console.error('Discord auth erreur :', err);
+    }
+
+    // Nettoyer les paramètres OAuth de l'URL
+    const cleanUrl = window.location.origin + window.location.pathname + window.location.hash;
+    history.replaceState(null, '', cleanUrl);
+  }
+
+  /* ── Init auth ── */
+  function initDiscordAuth() {
+    const session = loadDiscordSession();
+    if (session) {
+      discordUser = session.user;
+    }
+    updateDiscordUI();
+
+    // Délégation sur le document pour capturer les clics
+    // même si les boutons sont cachés au moment de l'init
+    document.addEventListener('click', function (e) {
+      if (e.target.closest('#discord-login-btn')) {
+        startDiscordLogin();
+      }
+      if (e.target.closest('#discord-logout-btn')) {
+        discordUser = null;
+        clearDiscordSession();
+        updateDiscordUI();
+      }
+    });
+
+    // Gérer le callback OAuth si on revient de Discord
+    handleDiscordCallback();
+  }
+
   /* ── Navigation SPA ── */
   const pages = {
     accueil: document.getElementById('page-accueil'),
@@ -696,6 +901,298 @@
     });
   }
 
+  /* ══════════════════════════════════════════════════════
+     Système d'avis — Supabase + Auth Discord
+     ══════════════════════════════════════════════════════ */
+
+  /* ── Anti doublon : utilise discord_user_id si connecté, sinon localStorage ── */
+  function hasRecentlyReviewed(serverId) {
+    if (discordUser) return false; // l'unicité est gérée côté Supabase (discord_user_id unique/serveur)
+    try {
+      const data = JSON.parse(localStorage.getItem('mc_reviewed') || '{}');
+      const last = data[serverId];
+      return last && (Date.now() - last) < 3_600_000; // 1 h
+    } catch { return false; }
+  }
+
+  function markReviewed(serverId) {
+    if (discordUser) return; // Supabase gère la déduplication
+    try {
+      const data = JSON.parse(localStorage.getItem('mc_reviewed') || '{}');
+      data[serverId] = Date.now();
+      localStorage.setItem('mc_reviewed', JSON.stringify(data));
+    } catch { /* ignore */ }
+  }
+
+  /* ── Fetch des avis depuis Supabase ── */
+  async function fetchReviews(serverId) {
+    const url = SUPABASE_URL + '/rest/v1/reviews'
+      + '?server_id=eq.' + encodeURIComponent(serverId)
+      + '&order=created_at.desc&limit=50';
+
+    const res = await fetch(url, { headers: SUPABASE_HEADERS });
+    if (!res.ok) throw new Error('Erreur chargement avis (' + res.status + ')');
+    return res.json(); // tableau d'avis
+  }
+
+  /* ── Envoi d'un avis vers Supabase ── */
+  async function submitReview(serverId, pseudo, rating, text) {
+    const payload = {
+      server_id: serverId,
+      pseudo: (pseudo || 'Anonyme').slice(0, 32).trim() || 'Anonyme',
+      rating: rating,
+      text: (text || '').slice(0, 280).trim(),
+    };
+
+    // Si l'utilisateur est connecté avec Discord, on enregistre son ID
+    // et on utilise son nom comme pseudo par défaut
+    if (discordUser) {
+      payload.discord_user_id = discordUser.id;
+      payload.pseudo = getDiscordDisplayName(discordUser).slice(0, 32);
+    }
+
+    const res = await fetch(SUPABASE_URL + '/rest/v1/reviews', {
+      method: 'POST',
+      headers: { ...SUPABASE_HEADERS, 'Prefer': 'return=minimal' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      // Code 23505 = violation unicité (discord_user_id déjà présent pour ce serveur)
+      if (err.code === '23505') throw new Error('already_reviewed');
+      throw new Error(err.message || 'Erreur soumission');
+    }
+  }
+
+  /* ── Helpers d'affichage ── */
+  function buildStarsHtml(rating, total) {
+    total = total || 5;
+    let html = '';
+    for (let i = 1; i <= total; i++) {
+      html += '<span class="review-star' + (i <= rating ? ' filled' : '') + '">★</span>';
+    }
+    return html;
+  }
+
+  function buildAvgHtml(reviews) {
+    if (!reviews.length) return '<span class="reviews-no-badge">Aucun avis</span>';
+    const avg = (reviews.reduce(function (s, r) { return s + r.rating; }, 0) / reviews.length).toFixed(1);
+    return '<span class="reviews-avg-badge">★ ' + avg
+      + ' <span class="reviews-count">(' + reviews.length + ' avis)</span></span>';
+  }
+
+  function buildReviewCardsHtml(reviews) {
+    if (!reviews.length) {
+      return '<p class="reviews-empty">Aucun avis pour l\'instant. Soyez le premier !</p>';
+    }
+    return reviews.map(function (r) {
+      const discordBadge = r.discord_user_id
+        ? '<span class="review-discord-badge"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.03.054a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg> Discord</span>'
+        : '';
+      return '<div class="review-card">'
+        + '<div class="review-header">'
+        + '<span class="review-stars">' + buildStarsHtml(r.rating) + '</span>'
+        + '<span class="review-pseudo">' + escapeHtml(r.pseudo || 'Anonyme') + '</span>'
+        + discordBadge
+        + '<span class="review-date">' + escapeHtml(r.date || new Date(r.created_at).toLocaleDateString('fr-FR')) + '</span>'
+        + '</div>'
+        + (r.text ? '<p class="review-text">' + escapeHtml(r.text) + '</p>' : '')
+        + '</div>';
+    }).join('');
+  }
+
+  /* ── Bind le sélecteur d'étoiles interactif ── */
+  function bindStarPicker(picker) {
+    if (!picker) return;
+    const stars = picker.querySelectorAll('.star-pick');
+
+    function refresh(selected, hovered) {
+      stars.forEach(function (s) {
+        const v = parseInt(s.dataset.val);
+        s.classList.toggle('active', hovered ? v <= hovered : v <= selected);
+      });
+    }
+
+    stars.forEach(function (star) {
+      star.addEventListener('mouseenter', function () {
+        refresh(parseInt(picker.dataset.selected || 0), parseInt(star.dataset.val));
+      });
+      star.addEventListener('mouseleave', function () {
+        refresh(parseInt(picker.dataset.selected || 0), 0);
+      });
+      star.addEventListener('click', function () {
+        picker.dataset.selected = star.dataset.val;
+        refresh(parseInt(star.dataset.val), 0);
+      });
+    });
+  }
+
+  /* ── Rendu complet de la section avis ── */
+  function renderReviewsSection(serverId) {
+    const section = document.getElementById('modal-reviews-section');
+    if (!section) return;
+
+    const alreadyReviewed = hasRecentlyReviewed(serverId);
+
+    // Formulaire ou invite selon l'état de connexion
+    let formHtml;
+    if (!discordUser) {
+      // Non connecté : afficher une invite à se connecter
+      formHtml = '<div class="review-discord-prompt">'
+        + '<svg width="18" height="18" viewBox="0 0 24 24" fill="#5865F2"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.03.054a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>'
+        + '<span>Connectez-vous pour laisser un avis vérifié.</span>'
+        + '<button type="button" class="btn-discord-inline" id="review-discord-login-btn">Se connecter</button>'
+        + '</div>';
+    } else if (alreadyReviewed) {
+      formHtml = '<p class="review-already-done">✓ Vous avez déjà soumis un avis pour ce serveur récemment.</p>';
+    } else {
+      formHtml = '<div class="review-form" id="review-form-wrap">'
+        + '<p class="review-form-title">Laisser un avis en tant que <strong style="color:var(--green-muted)">' + escapeHtml(getDiscordDisplayName(discordUser)) + '</strong></p>'
+        + '<div class="review-form-fields">'
+        + '<div class="review-form-row">'
+        + '<div class="review-star-picker" data-selected="0">'
+        + '<span class="review-star-picker-label">Note :</span>'
+        + '<span class="star-pick" data-val="1">★</span>'
+        + '<span class="star-pick" data-val="2">★</span>'
+        + '<span class="star-pick" data-val="3">★</span>'
+        + '<span class="star-pick" data-val="4">★</span>'
+        + '<span class="star-pick" data-val="5">★</span>'
+        + '</div>'
+        + '</div>'
+        + '<textarea class="review-input review-text-input" placeholder="Votre commentaire (optionnel)" maxlength="280" rows="2"></textarea>'
+        + '<div class="review-form-footer">'
+        + '<span class="review-char-count" id="review-char-count">0 / 280</span>'
+        + '<button type="button" class="btn btn-primary review-submit-btn">Publier</button>'
+        + '</div>'
+        + '</div>'
+        + '</div>';
+    }
+
+    // Structure initiale avec spinner dans la liste
+    section.innerHTML =
+      '<div class="reviews-divider"></div>'
+      + '<div class="reviews-header">'
+      + '<h3 class="reviews-title">⭐ Avis de la communauté</h3>'
+      + '<div class="reviews-header-right">'
+      + '<span class="reviews-avg-wrap"><span class="reviews-no-badge">Chargement…</span></span>'
+      + '<select class="reviews-sort-select" id="reviews-sort-select" aria-label="Trier les avis">'
+      + '<option value="recent">Plus récents</option>'
+      + '<option value="desc">Note ↓</option>'
+      + '<option value="asc">Note ↑</option>'
+      + '</select>'
+      + '</div>'
+      + '</div>'
+      + '<div class="reviews-list" id="reviews-list-inner">'
+      + '<div class="reviews-spinner"><div class="spinner"></div></div>'
+      + '</div>'
+      + formHtml;
+
+    // Bind bouton connexion dans la section avis
+    const reviewLoginBtn = section.querySelector('#review-discord-login-btn');
+    if (reviewLoginBtn) {
+      reviewLoginBtn.addEventListener('click', startDiscordLogin);
+    }
+
+    // Bind picker étoiles
+    bindStarPicker(section.querySelector('.review-star-picker'));
+
+    // Compteur de caractères
+    const textarea = section.querySelector('.review-text-input');
+    const charCount = section.querySelector('#review-char-count');
+    if (textarea && charCount) {
+      textarea.addEventListener('input', function () {
+        charCount.textContent = textarea.value.length + ' / 280';
+      });
+    }
+
+    // Bind soumission
+    const submitBtn = section.querySelector('.review-submit-btn');
+    const picker = section.querySelector('.review-star-picker');
+    if (submitBtn) {
+      submitBtn.addEventListener('click', function () {
+        const rating = picker ? parseInt(picker.dataset.selected || 0) : 0;
+        if (!rating) {
+          if (picker) {
+            picker.classList.add('shake');
+            setTimeout(function () { picker.classList.remove('shake'); }, 450);
+          }
+          return;
+        }
+
+        const pseudo = discordUser ? getDiscordDisplayName(discordUser) : '';
+        const text = textarea ? textarea.value.trim() : '';
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = '…';
+
+        submitReview(serverId, pseudo, rating, text)
+          .then(function () {
+            markReviewed(serverId);
+            // Remplacer le form par un message de confirmation
+            const form = document.getElementById('review-form-wrap');
+            if (form) {
+              form.innerHTML = '<p class="review-success-msg">✓ Avis publié — merci !</p>';
+            }
+            // Recharger la liste des avis
+            return fetchReviews(serverId);
+          })
+          .then(function (reviews) {
+            refreshReviewsList(reviews, section);
+          })
+          .catch(function (err) {
+            console.error(err);
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Publier';
+            const msg = err.message === 'already_reviewed'
+              ? 'Vous avez déjà laissé un avis pour ce serveur.'
+              : 'Erreur : ' + escapeHtml(err.message);
+            submitBtn.insertAdjacentHTML('afterend',
+              '<p class="review-error-msg">' + msg + '</p>');
+          });
+      });
+    }
+
+    // Charger les avis
+    fetchReviews(serverId)
+      .then(function (reviews) {
+        refreshReviewsList(reviews, section);
+
+        // Bind le sélecteur de tri
+        const sortSelect = section.querySelector('#reviews-sort-select');
+        if (sortSelect) {
+          sortSelect.addEventListener('change', function () {
+            refreshReviewsList(reviews, section);
+          });
+        }
+      })
+      .catch(function () {
+        const list = document.getElementById('reviews-list-inner');
+        if (list) list.innerHTML = '<p class="reviews-empty">Impossible de charger les avis.</p>';
+      });
+  }
+
+  function sortReviews(reviews, mode) {
+    const sorted = reviews.slice();
+    if (mode === 'desc') {
+      sorted.sort(function (a, b) { return b.rating - a.rating; });
+    } else if (mode === 'asc') {
+      sorted.sort(function (a, b) { return a.rating - b.rating; });
+    }
+    // 'recent' → ordre Supabase (created_at desc), déjà trié
+    return sorted;
+  }
+
+  function refreshReviewsList(reviews, section) {
+    const sortSelect = section.querySelector('#reviews-sort-select');
+    const mode = sortSelect ? sortSelect.value : 'recent';
+    const sorted = sortReviews(reviews, mode);
+
+    const list = document.getElementById('reviews-list-inner');
+    if (list) list.innerHTML = buildReviewCardsHtml(sorted);
+    const avgWrap = section.querySelector('.reviews-avg-wrap');
+    if (avgWrap) avgWrap.innerHTML = buildAvgHtml(reviews); // avg toujours sur tous les avis
+  }
+
   /* ── Pop-up "Rejoindre" ── */
   const serverModal = document.getElementById('server-modal');
   const modalServerName = document.getElementById('modal-server-name');
@@ -768,6 +1265,9 @@
 
     serverModal.hidden = false;
     syncModalOpenState();
+
+    // Charger les avis pour ce serveur
+    renderReviewsSection(code);
 
     const shareBtn = document.getElementById('modal-share-btn');
     if (shareBtn) {
@@ -1119,6 +1619,7 @@
   const footerYear = document.getElementById('footer-year');
   if (footerYear) footerYear.textContent = new Date().getFullYear();
   initCursorHalo();
+  initDiscordAuth();
   handleRoute();
 
   if (location.hash === '#mises-a-jour') loadUpdates();
