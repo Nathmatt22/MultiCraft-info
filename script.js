@@ -641,21 +641,72 @@
     const lowerText = text.toLowerCase();
 
     const countryPatterns = {
-      'France': ['france', 'fr ', 'paris', 'lyon', 'marseille', '🇫🇷'],
-      'Allemagne': ['allemagne', 'germany', 'de ', 'berlin', 'frankfurt', '🇩🇪'],
-      'États-Unis': ['usa', 'united states', 'amérique', 'new york', 'california', '🇺🇸', 'us '],
-      'Royaume-Uni': ['uk', 'united kingdom', 'angleterre', 'londres', '🇬🇧'],
-      'Canada': ['canada', 'quebec', 'toronto', '🇨🇦'],
-      'Australie': ['australia', 'sydney', 'melbourne', '🇦🇺'],
+      'France': ['france', 'fr ', 'paris', 'lyon', 'marseille', 'toulouse', 'bordeaux', 'lille', 'nantes', 'strasbourg', '🇫🇷'],
+      'Allemagne': ['allemagne', 'germany', 'deutschland', 'de ', 'berlin', 'frankfurt', 'munich', 'münchen', 'hamburg', 'falkenstein', 'nuremberg', '🇩🇪'],
+      'États-Unis': ['usa', 'united states', 'amérique', 'etats-unis', 'new york', 'california', 'texas', 'chicago', 'los angeles', 'miami', 'seattle', 'dallas', '🇺🇸', 'us '],
+      'Royaume-Uni': ['uk', 'united kingdom', 'angleterre', 'royaume-uni', 'londres', 'london', 'manchester', 'écosse', 'scotland', '🏴', '🇬🇧'],
+      'Canada': ['canada', 'quebec', 'québec', 'toronto', 'montreal', 'montréal', 'vancouver', 'ottawa', '🇨🇦'],
+      'Australie': ['australia', 'australie', 'sydney', 'melbourne', 'brisbane', 'perth', '🇦🇺'],
       'Singapour': ['singapore', 'singapour', '🇸🇬'],
       'Hong Kong': ['hong kong', '🇭🇰'],
       'Finlande': ['finlande', 'finland', 'helsinki', '🇫🇮'],
-      'Pays-Bas': ['pays-bas', 'netherlands', 'naaldwijk', '🇳🇱'],
-      'Japon': ['japan', 'tokyo', 'japon', '🇯🇵'],
-      'Corée du Sud': ['korea', 'south korea', 'seoul', '🇰🇷'],
-      'Brésil': ['brazil', 'brésil', 'sao paulo', '🇧🇷'],
-      'Pologne': ['poland', 'pologne', 'warsaw', '🇵🇱'],
-      'Suède': ['sweden', 'suède', 'stockholm', '🇸🇪']
+      'Pays-Bas': ['pays-bas', 'netherlands', 'naaldwijk', 'amsterdam', 'rotterdam', 'hollande', '🇳🇱'],
+      'Japon': ['japan', 'tokyo', 'japon', 'osaka', 'yokohama', '🇯🇵'],
+      'Corée du Sud': ['korea', 'south korea', 'seoul', 'corée du sud', 'corée', '🇰🇷'],
+      'Brésil': ['brazil', 'brésil', 'bresil', 'sao paulo', 'são paulo', 'rio de janeiro', '🇧🇷'],
+      'Pologne': ['poland', 'pologne', 'warsaw', 'varsovie', 'cracovie', 'krakow', '🇵🇱'],
+      'Suède': ['sweden', 'suède', 'suede', 'stockholm', 'göteborg', 'gothenburg', '🇸🇪'],
+      'Belgique': ['belgium', 'belgique', 'bruxelles', 'brussels', 'anvers', 'antwerp', '🇧🇪'],
+      'Suisse': ['switzerland', 'suisse', 'zurich', 'genève', 'geneva', 'berne', 'bern', '🇨🇭'],
+      'Espagne': ['spain', 'espagne', 'madrid', 'barcelone', 'barcelona', 'séville', 'sevilla', 'valence', '🇪🇸'],
+      'Portugal': ['portugal', 'lisbonne', 'lisbon', 'porto', '🇵🇹'],
+      'Italie': ['italy', 'italie', 'rome', 'rome', 'milan', 'milano', 'naples', 'naples', 'turin', 'torino', '🇮🇹'],
+      'Autriche': ['austria', 'autriche', 'vienne', 'vienna', 'salzbourg', 'salzburg', '🇦🇹'],
+      'Norvège': ['norway', 'norvège', 'norvege', 'oslo', 'bergen', '🇳🇴'],
+      'Danemark': ['denmark', 'danemark', 'copenhague', 'copenhagen', 'aarhus', '🇩🇰'],
+      'Irlande': ['ireland', 'irlande', 'dublin', 'cork', '🇮🇪'],
+      'République tchèque': ['czech', 'tchèque', 'tcheque', 'prague', 'prague', '🇨🇿'],
+      'Roumanie': ['romania', 'roumanie', 'bucarest', 'bucharest', 'cluj', '🇷🇴'],
+      'Hongrie': ['hungary', 'hongrie', 'budapest', '🇭🇺'],
+      'Grèce': ['greece', 'grèce', 'grece', 'athènes', 'athens', 'thessalonique', '🇬🇷'],
+      'Ukraine': ['ukraine', 'kiev', 'kyiv', 'kharkiv', '🇺🇦'],
+      'Russie': ['russia', 'russie', 'moscou', 'moscow', 'saint-pétersbourg', 'saint petersburg', '🇷🇺'],
+      'Turquie': ['turkey', 'turquie', 'istanbul', 'ankara', '🇹🇷'],
+      'Bulgarie': ['bulgaria', 'bulgarie', 'sofia', '🇧🇬'],
+      'Serbie': ['serbia', 'serbie', 'belgrade', '🇷🇸'],
+      'Croatie': ['croatia', 'croatie', 'zagreb', 'split', '🇭🇷'],
+      'Lituanie': ['lithuania', 'lituanie', 'vilnius', '🇱🇹'],
+      'Lettonie': ['latvia', 'lettonie', 'riga', '🇱🇻'],
+      'Estonie': ['estonia', 'estonie', 'tallinn', '🇪🇪'],
+      'Slovaquie': ['slovakia', 'slovaquie', 'bratislava', '🇸🇰'],
+      'Slovénie': ['slovenia', 'slovénie', 'slovenie', 'ljubljana', '🇸🇮'],
+      'Islande': ['iceland', 'islande', 'reykjavik', '🇮🇸'],
+      'Luxembourg': ['luxembourg', '🇱🇺'],
+      'Maroc': ['morocco', 'maroc', 'casablanca', 'rabat', 'marrakech', '🇲🇦'],
+      'Algérie': ['algeria', 'algérie', 'algerie', 'alger', 'algiers', '🇩🇿'],
+      'Tunisie': ['tunisia', 'tunisie', 'tunis', '🇹🇳'],
+      'Égypte': ['egypt', 'égypte', 'egypte', 'le caire', 'cairo', 'caire', 'alexandrie', '🇪🇬'],
+      'Afrique du Sud': ['south africa', 'afrique du sud', 'johannesburg', 'le cap', 'cape town', 'pretoria', '🇿🇦'],
+      'Nigéria': ['nigeria', 'nigéria', 'lagos', 'abuja', '🇳🇬'],
+      'Sénégal': ['senegal', 'sénégal', 'dakar', '🇸🇳'],
+      'Côte d\'Ivoire': ['ivory coast', 'côte d\'ivoire', 'cote d\'ivoire', 'abidjan', '🇨🇮'],
+      'Inde': ['india', 'inde', 'mumbai', 'delhi', 'bangalore', 'bengaluru', 'chennai', '🇮🇳'],
+      'Chine': ['china', 'chine', 'beijing', 'pékin', 'pekin', 'shanghai', 'shenzhen', 'guangzhou', '🇨🇳'],
+      'Taïwan': ['taiwan', 'taïwan', 'taipei', '🇹🇼'],
+      'Indonésie': ['indonesia', 'indonésie', 'indonesie', 'jakarta', 'bali', '🇮🇩'],
+      'Malaisie': ['malaysia', 'malaisie', 'kuala lumpur', '🇲🇾'],
+      'Thaïlande': ['thailand', 'thaïlande', 'thailande', 'bangkok', '🇹🇭'],
+      'Vietnam': ['vietnam', 'hanoi', 'ho chi minh', 'saigon', '🇻🇳'],
+      'Philippines': ['philippines', 'manille', 'manila', 'cebu', '🇵🇭'],
+      'Émirats arabes unis': ['united arab emirates', 'émirats', 'emirats', 'dubai', 'dubaï', 'abu dhabi', '🇦🇪'],
+      'Arabie saoudite': ['saudi arabia', 'arabie saoudite', 'riyad', 'riyadh', 'djeddah', 'jeddah', '🇸🇦'],
+      'Israël': ['israel', 'israël', 'tel aviv', 'jérusalem', 'jerusalem', '🇮🇱'],
+      'Mexique': ['mexico', 'mexique', 'mexico city', 'guadalajara', '🇲🇽'],
+      'Argentine': ['argentina', 'argentine', 'buenos aires', 'cordoba', 'córdoba', '🇦🇷'],
+      'Chili': ['chile', 'chili', 'santiago', 'valparaiso', '🇨🇱'],
+      'Colombie': ['colombia', 'colombie', 'bogota', 'bogotá', 'medellin', 'medellín', '🇨🇴'],
+      'Pérou': ['peru', 'pérou', 'lima', '🇵🇪'],
+      'Nouvelle-Zélande': ['new zealand', 'nouvelle-zélande', 'nouvelle zelande', 'auckland', 'wellington', '🇳🇿']
     };
 
     for (const [country, patterns] of Object.entries(countryPatterns)) {
@@ -769,20 +820,25 @@
       });
     }
 
-    filtered.sort(function (a, b) {
-      if (sortType === 'rating-desc' || sortType === 'rating-asc') {
-        // Les serveurs sans aucun avis sont toujours placés à la fin, quel que soit le sens du tri.
-        const NO_RATING = 6;
-        const aRating = a._avgRating != null ? a._avgRating : NO_RATING;
-        const bRating = b._avgRating != null ? b._avgRating : NO_RATING;
-        return sortType === 'rating-desc' ? bRating - aRating : aRating - bRating;
-      }
+    if (sortType === 'rating-desc' || sortType === 'rating-asc') {
+      // Les serveurs sans aucun avis sont toujours placés après ceux qui ont une note,
+      // quel que soit le sens du tri (décroissant ou croissant).
+      const rated = filtered.filter(function (s) { return s._avgRating != null; });
+      const unrated = filtered.filter(function (s) { return s._avgRating == null; });
 
-      const aPlayers = a.online ? (a.connected_players || 0) : -1;
-      const bPlayers = b.online ? (b.connected_players || 0) : -1;
+      rated.sort(function (a, b) {
+        return sortType === 'rating-desc' ? b._avgRating - a._avgRating : a._avgRating - b._avgRating;
+      });
 
-      return sortType === 'players-asc' ? aPlayers - bPlayers : bPlayers - aPlayers;
-    });
+      filtered = rated.concat(unrated);
+    } else {
+      filtered.sort(function (a, b) {
+        const aPlayers = a.online ? (a.connected_players || 0) : -1;
+        const bPlayers = b.online ? (b.connected_players || 0) : -1;
+
+        return sortType === 'players-asc' ? aPlayers - bPlayers : bPlayers - aPlayers;
+      });
+    }
 
     filteredServers = filtered;
     renderServers(filtered);
@@ -939,11 +995,27 @@
     }
   }
 
+  const searchBtn = document.getElementById('search-btn');
+
+  function triggerServerSearch() {
+    if (!serversLoaded) return;
+    applyFiltersAndSort();
+  }
+
   if (serverSearchInput) {
-    serverSearchInput.addEventListener('input', function () {
-      if (!serversLoaded) return;
-      applyFiltersAndSort();
+    serverSearchInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        triggerServerSearch();
+      }
     });
+    // Le champ étant de type "search", appuyer sur la croix de suppression
+    // déclenche un évènement "search" natif : on relance la recherche dans ce cas.
+    serverSearchInput.addEventListener('search', triggerServerSearch);
+  }
+
+  if (searchBtn) {
+    searchBtn.addEventListener('click', triggerServerSearch);
   }
 
   if (sortBySelect) {
