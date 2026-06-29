@@ -1,26 +1,29 @@
 ![MultiCraft-Info](./multicraft-info.svg)
 
 <p align="center">
-  Un site web rassemblant des infos sur MultiCraft.
+  A website with informations about the MultiCraft game.
 </p>
 
 <p align="center">
 <a href="https://multicraft-info.netlify.app/">Site web</a>
 </p>
  
-Fait en HTML/CSS/JS avec du Markdown et du JSON
+Developed with HTML/CSS/JS
 
-## Fonctionnalités 
+## Features
 <p>
-* Affiche la lste des serveurs physiques du jeu <br>
-* Affiche la liste des serveurs de jeu <br>
-* Affiche la liste des mises à jour <br>
-  Et d'autres excellentes fonctionnalités qui arriveront bientôt ! <br>
+* Displays the list of physical servers <br>
+* Displays the list of game servers <br>
+* Displays the list of updates <br>
+* Allows users to put reviews for servers <br>
+And other great features coming soon! <br>
 </p>
 
 ## Licenses
 <p>
-License du code : GNU General Public License V3 <br>
-License du texte dans le dossier "updates" et des images dans ledit dossier : CC-BY-NC 4.0 <br>
-License de la police MultiCraft Font : CC-BY-SA 3.0 (Copyright MultiCraft Studio OÜ)
+License for the code : GNU General Public License V3 <br>
+License for text and pictures in "updates" directory : CC-BY-NC 4.0 <br>
+License of MultiCraft Font : CC-BY-SA 3.0 (Copyright MultiCraft Studio OÜ)
 </p>
+
+### (C) MultiCraft Info Team
