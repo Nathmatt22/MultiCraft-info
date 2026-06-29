@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+   <!DOCTYPE html>
 <html lang="fr">
 
 <head>
@@ -144,18 +144,18 @@
       </div>
 
       <div class="servers-toolbar">
-        <label class="search-bar" for="server-search">
-          <span class="search-icon" aria-hidden="true">🔍</span>
+        <div class="search-bar" id="search-bar-wrapper">
           <input type="search" id="server-search" placeholder="Rechercher un serveur…"
             aria-label="Rechercher un serveur" data-i18n-placeholder="servers.searchPlaceholder">
-        </label>
+          <button type="button" id="search-btn" class="search-submit-btn" aria-label="Rechercher">🔍</button>
+        </div>
 
         <div class="filters-group">
           <select id="sort-by" class="filter-select" aria-label="Trier les serveurs">
             <option value="players-desc" data-i18n="servers.sortPlayersDesc">Joueurs ↓</option>
             <option value="players-asc" data-i18n="servers.sortPlayersAsc">Joueurs ↑</option>
-            <option value="rating-desc" data-i18n="servers.sortRatingDesc">Note ↓</option>
-            <option value="rating-asc" data-i18n="servers.sortRatingAsc">Note ↑</option>
+            <option value="rating-desc" data-i18n="servers.sortRatingDesc">Note Décroissant</option>
+            <option value="rating-asc" data-i18n="servers.sortRatingAsc">Note Croissant</option>
           </select>
 
           <select id="filter-country" class="filter-select" aria-label="Filtrer par pays">
