@@ -1832,6 +1832,18 @@
     }
   });
 
+  /* ── Son des boutons/liens ── */
+  document.addEventListener('click', function (e) {
+    const target = e.target.closest('a, button, [role="button"]');
+    if (target) {
+      const audio = new Audio('btn_press.ogg');
+      audio.play().catch(function (err) {
+        // Ignorer l'erreur si la lecture automatique est bloquée avant toute interaction
+        console.warn('Impossible de jouer le son :', err);
+      });
+    }
+  });
+
   /* ── Init ── */
   const footerYear = document.getElementById('footer-year');
   if (footerYear) footerYear.textContent = new Date().getFullYear();
