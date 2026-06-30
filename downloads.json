@@ -1,0 +1,18 @@
+{
+  "android": [
+    {
+      "version": "2.0.17",
+      "build": "525",
+      "url": "https://multicraft.world/downloads/2.0.17/multicraft-2.0.17-525-release.apk",
+      "latest": true
+    }
+  ],
+  "windows": [
+    {
+      "version": "2.0.17",
+      "build": "5",
+      "url": "https://multicraft.world/downloads/2.0.17/multicraft-2.0.17-5-setup.exe",
+      "latest": true
+    }
+  ]
+}
