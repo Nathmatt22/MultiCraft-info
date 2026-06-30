@@ -2751,3 +2751,67 @@ body.modal-open {
     right: 12px;
   }
 }
+
+/* ── Actions sur les messages du chat ── */
+.chat-msg-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.chat-msg:hover .chat-msg-actions {
+  opacity: 1;
+}
+
+.chat-action-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.chat-action-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}
+
+.chat-action-btn.delete:hover {
+  background: rgba(255, 100, 100, 0.1);
+  color: #f87171;
+}
+
+.chat-notification {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 10px;
+  background: rgba(248, 113, 113, 0.9);
+  color: white;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  animation: fadeIn 0.3s ease;
+  white-space: nowrap;
+  z-index: 10;
+}
+
+.chat-notification.success {
+  background: rgba(74, 222, 128, 0.9);
+}
+
+@media (max-width: 768px) {
+  .chat-msg-actions {
+    opacity: 1;
+  }
+}
+
+.chat-refresh-btn.spinning {
+  animation: spin 0.6s linear infinite;
+}

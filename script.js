@@ -40,7 +40,7 @@
     }
   ];
 
-  /* ── Supabase (avis serveurs & chat) ── */
+  /* ── Supabase ── */
   const SUPABASE_URL = 'https://qxzvnxekjggjldezprec.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF4enZueGVramdnamxkZXpwcmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMzE3NjMsImV4cCI6MjA5NzgwNzc2M30.Qa-lxT8mYy2kejt2kiydOvDqCYNeAD6q1d1Ce56A5Rc';
 
@@ -48,6 +48,7 @@
     'apikey': SUPABASE_ANON_KEY,
     'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
     'Content-Type': 'application/json',
+    'Prefer': 'return=representation'
   };
 
   /* ── Discord OAuth2 ── */
@@ -71,6 +72,210 @@
   function getDiscordDisplayName(user) {
     if (!user) return '';
     return user.global_name || user.username || (window.i18n.t('discord.user') + user.discriminator);
+  }
+
+  /* ── Dictionnaire des mots interdits (insultes) ── */
+  const BAD_WORDS = {
+    // Insultes générales
+    'connard': 'insulte',
+    'con': 'insulte',
+    'pute': 'insulte',
+    'prostituée': 'insulte',
+    'salope': 'insulte',
+    'enculé': 'insulte',
+    'fdp': 'insulte',
+    'batard': 'insulte',
+    'bâtard': 'insulte',
+    'merde': 'vulgarité',
+    'putain': 'vulgarité',
+    'bordel': 'vulgarité',
+    'foutre': 'vulgarité',
+    'nique': 'insulte',
+    'nik': 'insulte',
+    'baise': 'vulgarité',
+
+    // Raciste / discriminatoire
+    'nègre': 'raciste',
+    'negro': 'raciste',
+    'bougnoule': 'raciste',
+    'bicot': 'raciste',
+    'raton': 'raciste',
+    'youpin': 'raciste',
+    'feuj': 'raciste',
+    'pedé': 'homophobe',
+    'pédé': 'homophobe',
+    'gouine': 'homophobe',
+    'tarlouze': 'homophobe',
+    'pd': 'homophobe',
+
+    // Variantes avec lettres remplacées
+    'c0nnard': 'insulte',
+    'c0n': 'insulte',
+    'f0utre': 'vulgarité',
+    'n1que': 'insulte',
+    's4lope': 'insulte',
+    'b4tard': 'insulte',
+
+    // En anglais
+    'fuck': 'vulgarité',
+    'shit': 'vulgarité',
+    'bitch': 'insulte',
+    'bastard': 'insulte',
+    'asshole': 'insulte',
+    'motherfucker': 'insulte',
+    'mf': 'insulte',
+
+    // Variantes leet speak
+    'b1tch': 'insulte',
+    '4ssh0le': 'insulte',
+    'f4gg0t': 'homophobe',
+
+    // Autres
+    'salaud': 'insulte',
+    'salopard': 'insulte',
+    'connasse': 'insulte',
+    'grognasse': 'insulte',
+    'pétasse': 'insulte',
+    'traînée': 'insulte',
+    'trainée': 'insulte',
+    'chienne': 'insulte',
+    'suceur': 'insulte',
+    'suceuse': 'insulte',
+    'branleur': 'insulte',
+    'branleuse': 'insulte',
+    'trouduc': 'insulte',
+    'trou du cul': 'insulte',
+    'trouducul': 'insulte',
+    'enculeur': 'insulte',
+    'enculeuse': 'insulte',
+    'débile': 'insulte',
+    'debile': 'insulte',
+    'idiot': 'insulte',
+    'imbécile': 'insulte',
+    'imbecile': 'insulte',
+    'crétin': 'insulte',
+    'cretin': 'insulte',
+    'abruti': 'insulte',
+    'abruti': 'insulte',
+  };
+
+  /* ── Gestion des administrateurs depuis Supabase ── */
+  let adminList = [];
+  let adminCache = null;
+  let adminCacheTime = 0;
+  const ADMIN_CACHE_DURATION = 60000; // 1 minute
+
+  async function fetchAdmins() {
+    try {
+      const now = Date.now();
+      if (adminCache && (now - adminCacheTime) < ADMIN_CACHE_DURATION) {
+        return adminCache;
+      }
+
+      const url = SUPABASE_URL + '/rest/v1/admins?select=discord_user_id,role';
+      const res = await fetch(url, { headers: SUPABASE_HEADERS });
+      if (!res.ok) throw new Error('Erreur chargement admins (' + res.status + ')');
+
+      const admins = await res.json();
+      adminCache = admins;
+      adminCacheTime = now;
+      adminList = admins.map(function (a) { return a.discord_user_id; });
+
+      return admins;
+    } catch (err) {
+      console.error('Erreur chargement admins:', err);
+      return adminCache || [];
+    }
+  }
+
+  function isAdminUser(userId) {
+    if (!userId) return false;
+    return adminList.includes(userId);
+  }
+
+  function getUserRole(userId) {
+    if (!userId) return null;
+    const admin = adminCache ? adminCache.find(function (a) { return a.discord_user_id === userId; }) : null;
+    return admin ? admin.role : null;
+  }
+
+  function canModerate(userId) {
+    if (!userId) return false;
+    const role = getUserRole(userId);
+    return role === 'admin' || role === 'moderator';
+  }
+
+  // Fonction pour vérifier si un utilisateur est banni
+  async function isUserBanned(discordUserId) {
+    try {
+      const url = SUPABASE_URL + '/rest/v1/banned_users?discord_user_id=eq.' + encodeURIComponent(discordUserId) + '&select=*';
+      const res = await fetch(url, { headers: SUPABASE_HEADERS });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      return data && data.length > 0;
+    } catch (err) {
+      console.error('Erreur vérification bannissement:', err);
+      return false;
+    }
+  }
+
+  // Fonction pour nettoyer le message
+  function hasBadWords(text) {
+    const lowerText = text.toLowerCase();
+
+    for (const [badWord, category] of Object.entries(BAD_WORDS)) {
+      const regex = new RegExp('\\b' + badWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
+      if (regex.test(lowerText)) {
+        return { found: true, word: badWord, category: category };
+      }
+      if (lowerText.includes(badWord.toLowerCase())) {
+        return { found: true, word: badWord, category: category };
+      }
+    }
+    return { found: false };
+  }
+
+  function censorMessage(text) {
+    let censored = text;
+    for (const [badWord] of Object.entries(BAD_WORDS)) {
+      const regex = new RegExp('\\b' + badWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
+      censored = censored.replace(regex, '***');
+      const simpleRegex = new RegExp(badWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      censored = censored.replace(simpleRegex, '***');
+    }
+    return censored;
+  }
+
+  function showTemporaryNotification(message, isSuccess) {
+    const notification = document.createElement('div');
+    notification.className = 'chat-notification' + (isSuccess ? ' success' : '');
+    notification.textContent = message;
+    notification.style.cssText = `
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      margin-bottom: 10px;
+      background: ${isSuccess ? 'rgba(74, 222, 128, 0.9)' : 'rgba(248, 113, 113, 0.9)'};
+      color: white;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      animation: fadeIn 0.3s ease;
+      white-space: nowrap;
+      z-index: 10;
+    `;
+
+    const chatFooter = document.querySelector('.chat-footer');
+    if (chatFooter) {
+      chatFooter.style.position = 'relative';
+      chatFooter.appendChild(notification);
+      setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transition = 'opacity 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+      }, 3000);
+    }
   }
 
   /* ── Discord OAuth2 ── */
@@ -197,6 +402,7 @@
       discordUser = user;
       saveDiscordSession(user, tokenData.access_token, expiresAt);
       updateDiscordUI();
+      await fetchAdmins(); // Charger les admins après connexion
     } catch (err) {
       console.error('Discord auth erreur :', err);
     }
@@ -212,6 +418,7 @@
       discordUser = session.user;
     }
     updateDiscordUI();
+    fetchAdmins();
 
     document.addEventListener('click', function (e) {
       if (e.target.closest('#discord-login-btn')) {
@@ -343,7 +550,7 @@
     });
   }
 
-  /* ── Markdown parser (minimal) ── */
+  /* ── Markdown parser ── */
   function parseFrontmatter(raw) {
     const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
     if (!match) return { meta: {}, body: raw.trim() };
@@ -660,7 +867,7 @@
       });
   }
 
-  /* ── Serveurs (API live) ── */
+  /* ── Serveurs ── */
   const SERVERS_API_URL = 'https://multicraft-servers.creatif-france.workers.dev';
 
   let serversLoaded = false;
@@ -806,7 +1013,6 @@
     });
   }
 
-  /* ── Récupère la note moyenne de tous les serveurs en une seule requête ── */
   async function fetchAllServerRatings() {
     const ratings = new Map();
     try {
@@ -1730,8 +1936,7 @@
     if (serverModal && !serverModal.hidden) closeServerModal();
   });
 
-
-  /* ── Language change: re-render dynamic content ── */
+  /* ── Language change ── */
   document.addEventListener('langchange', function () {
     if (serversLoaded) {
       renderServers();
@@ -1756,7 +1961,7 @@
     }
   });
 
-  /* ── Son des boutons/liens ── */
+  /* ── Son ── */
   document.addEventListener('click', function (e) {
     const target = e.target.closest('a, button, [role="button"]');
     if (target) {
@@ -1813,12 +2018,23 @@
       var time = msg.created_at ? formatTime(msg.created_at) : '';
       var userDisplay = msg.username || 'Anonyme';
 
+      // Vérifier si l'utilisateur est admin
+      var isAdminUserFlag = isAdminUser(msg.discord_user_id);
+      var adminBadge = isAdminUserFlag ? ' <span style="color:#5865F2;font-size:0.6rem;">🛡️ Admin</span>' : '';
+
+      // Indicateur de modification
+      var editedIndicator = msg.is_edited ? ' <span style="font-size:0.6rem;color:var(--text-dim);font-style:italic;">(modifié)</span>' : '';
+
+      // Indicateur de censure (visible uniquement pour les admins)
+      var censoredIndicator = (msg.is_censored && isAdminUser(discordUser ? discordUser.id : null))
+        ? ' <span style="font-size:0.6rem;color:#fbbf24;font-style:italic;">(censuré)</span>' : '';
+
       return '<div class="chat-msg' + (isSelf ? ' self' : '') + '" data-msg-id="' + escapeHtmlChat(msg.id) + '">'
         + avatar
         + '<div class="chat-msg-content">'
-        + '<span class="chat-msg-user">' + escapeHtmlChat(userDisplay) + '</span>'
+        + '<span class="chat-msg-user">' + escapeHtmlChat(userDisplay) + adminBadge + '</span>'
         + '<div class="chat-msg-bubble">' + escapeHtmlChat(msg.message) + '</div>'
-        + (time ? '<span class="chat-msg-time">' + time + '</span>' : '')
+        + '<span class="chat-msg-time">' + time + editedIndicator + censoredIndicator + '</span>'
         + '</div>'
         + '</div>';
     }
@@ -1853,6 +2069,9 @@
           }
         });
       }
+
+      // Ajouter les boutons d'action
+      addMessageActions();
     }
 
     async function loadChatMessages(initial) {
@@ -1916,10 +2135,265 @@
       }
     }
 
+    // Fonction pour supprimer un message (admin ou propriétaire)
+    async function deleteMessage(messageId, discordUserId) {
+      if (!discordUser) return;
+
+      const isAdmin = isAdminUser(discordUser.id);
+      const isOwner = discordUser.id === discordUserId;
+
+      if (!isAdmin && !isOwner) {
+        showTemporaryNotification('❌ Vous ne pouvez pas supprimer ce message');
+        return;
+      }
+
+      try {
+        const url = SUPABASE_URL + '/rest/v1/global_chat?id=eq.' + messageId;
+        const res = await fetch(url, {
+          method: 'DELETE',
+          headers: SUPABASE_HEADERS,
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+
+        const msgElement = document.querySelector(`[data-msg-id="${messageId}"]`);
+        if (msgElement) {
+          msgElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+          msgElement.style.opacity = '0';
+          msgElement.style.transform = 'scale(0.9)';
+          setTimeout(function () { msgElement.remove(); }, 300);
+        }
+
+        chatMessages = chatMessages.filter(function (m) { return m.id !== messageId; });
+
+        showTemporaryNotification('✅ Message supprimé', true);
+      } catch (err) {
+        console.error('Erreur suppression:', err);
+        showTemporaryNotification('❌ Erreur lors de la suppression');
+      }
+    }
+
+    // Fonction pour éditer un message
+    async function editMessage(messageId, newText, discordUserId) {
+      if (!discordUser) return;
+
+      const isAdmin = isAdminUser(discordUser.id);
+      const isOwner = discordUser.id === discordUserId;
+
+      if (!isAdmin && !isOwner) {
+        showTemporaryNotification('❌ Vous ne pouvez pas modifier ce message');
+        return;
+      }
+
+      newText = newText.trim();
+      if (!newText || newText.length > 500) {
+        showTemporaryNotification('❌ Message invalide');
+        return;
+      }
+
+      const badWordCheck = hasBadWords(newText);
+      if (badWordCheck.found && (badWordCheck.category === 'raciste' || badWordCheck.category === 'homophobe')) {
+        showTemporaryNotification('❌ Message bloqué - contenu raciste/homophobe interdit');
+        return;
+      }
+
+      let finalText = badWordCheck.found ? censorMessage(newText) : newText;
+
+      try {
+        const url = SUPABASE_URL + '/rest/v1/global_chat?id=eq.' + messageId;
+        const res = await fetch(url, {
+          method: 'PATCH',
+          headers: Object.assign({}, SUPABASE_HEADERS, { 'Prefer': 'return=representation' }),
+          body: JSON.stringify({
+            message: finalText,
+            edited_at: new Date().toISOString(),
+            is_edited: true,
+            original_message: badWordCheck.found ? newText : null,
+            is_censored: badWordCheck.found,
+            edited_by: discordUser.id,
+          }),
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+
+        const updated = await res.json();
+        if (updated && updated.length > 0) {
+          const msgElement = document.querySelector(`[data-msg-id="${messageId}"]`);
+          if (msgElement) {
+            const bubble = msgElement.querySelector('.chat-msg-bubble');
+            if (bubble) {
+              bubble.textContent = finalText;
+              const timeElement = msgElement.querySelector('.chat-msg-time');
+              if (timeElement) {
+                timeElement.textContent = 'modifié';
+              }
+            }
+          }
+
+          const msgIndex = chatMessages.findIndex(function (m) { return m.id === messageId; });
+          if (msgIndex !== -1) {
+            chatMessages[msgIndex].message = finalText;
+            chatMessages[msgIndex].is_edited = true;
+          }
+
+          showTemporaryNotification('✅ Message modifié', true);
+        }
+      } catch (err) {
+        console.error('Erreur modification:', err);
+        showTemporaryNotification('❌ Erreur lors de la modification');
+      }
+    }
+
+    // Fonction pour ajouter les boutons d'action sur les messages
+    function addMessageActions() {
+      document.querySelectorAll('.chat-msg').forEach(function (msgElement) {
+        if (msgElement.querySelector('.chat-msg-actions')) return;
+
+        const msgId = msgElement.dataset.msgId;
+        const msg = chatMessages.find(function (m) { return m.id === msgId; });
+        if (!msg) return;
+
+        const isAdmin = discordUser && isAdminUser(discordUser.id);
+        const isOwner = discordUser && discordUser.id === msg.discord_user_id;
+        const canModerate = discordUser && canModerate(discordUser.id);
+
+        if (!isAdmin && !isOwner && !canModerate) return;
+
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'chat-msg-actions';
+        actionsDiv.style.cssText = `
+          display: flex;
+          gap: 4px;
+          margin-top: 4px;
+        `;
+
+        // Bouton pour voir l'original (admins/mods)
+        if (isAdmin || canModerate) {
+          const viewBtn = document.createElement('button');
+          viewBtn.className = 'chat-action-btn';
+          viewBtn.textContent = '👁️';
+          viewBtn.title = 'Voir l\'original';
+          viewBtn.style.cssText = `
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: background 0.15s, color 0.15s;
+          `;
+          viewBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (msg.original_message) {
+              alert('Message original:\n' + msg.original_message + '\n\n(Message censuré affiché)');
+            } else {
+              alert('Message original:\n' + msg.message);
+            }
+          });
+          actionsDiv.appendChild(viewBtn);
+        }
+
+        // Bouton modifier
+        if (isOwner || isAdmin || canModerate) {
+          const editBtn = document.createElement('button');
+          editBtn.className = 'chat-action-btn';
+          editBtn.textContent = '✏️';
+          editBtn.title = 'Modifier';
+          editBtn.style.cssText = `
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: background 0.15s, color 0.15s;
+          `;
+          editBtn.onmouseover = function () { this.style.background = 'rgba(255,255,255,0.05)'; this.style.color = 'var(--text)'; };
+          editBtn.onmouseout = function () { this.style.background = 'none'; this.style.color = 'var(--text-dim)'; };
+          editBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const bubble = msgElement.querySelector('.chat-msg-bubble');
+            if (!bubble) return;
+
+            const currentText = bubble.textContent;
+            const newText = prompt('Modifier le message:', currentText);
+            if (newText !== null && newText !== currentText) {
+              editMessage(msgId, newText, msg.discord_user_id);
+            }
+          });
+          actionsDiv.appendChild(editBtn);
+        }
+
+        // Bouton supprimer
+        if (isOwner || isAdmin || canModerate) {
+          const deleteBtn = document.createElement('button');
+          deleteBtn.className = 'chat-action-btn delete';
+          deleteBtn.textContent = '🗑️';
+          deleteBtn.title = 'Supprimer';
+          deleteBtn.style.cssText = `
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: background 0.15s, color 0.15s;
+          `;
+          deleteBtn.onmouseover = function () { this.style.background = 'rgba(255,100,100,0.1)'; this.style.color = '#f87171'; };
+          deleteBtn.onmouseout = function () { this.style.background = 'none'; this.style.color = 'var(--text-dim)'; };
+          deleteBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (confirm('Supprimer ce message ?')) {
+              deleteMessage(msgId, msg.discord_user_id);
+            }
+          });
+          actionsDiv.appendChild(deleteBtn);
+        }
+
+        if (actionsDiv.children.length > 0) {
+          const contentDiv = msgElement.querySelector('.chat-msg-content');
+          if (contentDiv) {
+            contentDiv.appendChild(actionsDiv);
+          }
+        }
+      });
+    }
+
     async function sendChatMessage() {
       if (!discordUser || !chatInput) return;
+
+      // Vérifier si l'utilisateur est banni
+      const banned = await isUserBanned(discordUser.id);
+      if (banned) {
+        showTemporaryNotification('❌ Vous avez été banni du chat');
+        return;
+      }
+
       var text = chatInput.value.trim();
       if (!text || text.length > 500) return;
+
+      // Filtre anti-insulte
+      const badWordCheck = hasBadWords(text);
+
+      if (badWordCheck.found && (badWordCheck.category === 'raciste' || badWordCheck.category === 'homophobe')) {
+        chatInput.value = '';
+        chatInput.placeholder = '❌ Message bloqué - contenu raciste/homophobe interdit';
+        chatInput.style.borderColor = '#f87171';
+        setTimeout(() => {
+          chatInput.placeholder = window.i18n.t('chat.placeholder') || 'Écrire un message...';
+          chatInput.style.borderColor = '';
+        }, 3000);
+        return;
+      }
+
+      let finalText = text;
+      let warningMessage = '';
+
+      if (badWordCheck.found) {
+        finalText = censorMessage(text);
+        warningMessage = '⚠️ Message censuré (langage inapproprié)';
+      }
 
       chatInput.value = '';
       chatInput.style.height = 'auto';
@@ -1930,8 +2404,11 @@
           discord_user_id: discordUser.id,
           username: getDiscordDisplayName(discordUser).slice(0, 32),
           avatar_url: getDiscordAvatarUrl(discordUser),
-          message: text,
+          message: finalText,
+          original_message: badWordCheck.found ? text : null,
+          is_censored: badWordCheck.found,
         };
+
         var res = await fetch(SUPABASE_URL + '/rest/v1/global_chat', {
           method: 'POST',
           headers: Object.assign({}, SUPABASE_HEADERS, { 'Prefer': 'return=representation' }),
@@ -1939,6 +2416,7 @@
         });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         var created = await res.json();
+
         if (created && created.length > 0) {
           var msg = created[0];
           var existingIds = new Set(chatMessages.map(function (m) { return m.id; }));
@@ -1946,6 +2424,10 @@
             chatMessages.push(msg);
             renderMessages([msg], true);
             scrollToBottom();
+
+            if (badWordCheck.found && warningMessage) {
+              showTemporaryNotification(warningMessage);
+            }
           }
         }
       } catch (err) {
@@ -2098,4 +2580,10 @@
       }
     }
   }
+
+  // Rafraîchir les admins toutes les 5 minutes
+  setInterval(function () {
+    fetchAdmins();
+  }, 300000);
+
 })();
