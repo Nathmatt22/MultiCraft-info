@@ -70,9 +70,8 @@
         <a href="#accueil" class="nav-link active" data-nav="accueil" data-i18n="nav.home">Accueil</a>
         <a href="#mises-a-jour" class="nav-link" data-nav="mises-a-jour" data-i18n="nav.updates">Mises à jour</a>
         <a href="#serveurs" class="nav-link" data-nav="serveurs" data-i18n="nav.servers">Serveurs</a>
-        <a href="#info-du-jeu" class="nav-link" data-nav="info-du-jeu" data-i18n="nav.gameInfo">Info du jeu</a>
+        <a href="#le-jeu" class="nav-link" data-nav="le-jeu" data-i18n="nav.theGame">Le jeu</a>
         <a href="#info-du-site" class="nav-link" data-nav="info-du-site" data-i18n="nav.siteInfo">Info du site</a>
-        <a href="#telecharger" class="nav-link" data-nav="telecharger" data-i18n="nav.download">Télécharger</a>
         <a href="https://multidb.vercel.app/#/" class="nav-link">MultiDB</a>
       </nav>
       <!-- Language Switcher -->
@@ -160,10 +159,10 @@
 
         <div class="filters-group">
           <select id="sort-by" class="filter-select" aria-label="Trier les serveurs">
-            <option value="players-desc" data-i18n="servers.sortPlayersDesc">Joueurs ↓</option>
-            <option value="players-asc" data-i18n="servers.sortPlayersAsc">Joueurs ↑</option>
-            <option value="rating-desc" data-i18n="servers.sortRatingDesc">Note Décroissant</option>
-            <option value="rating-asc" data-i18n="servers.sortRatingAsc">Note Croissant</option>
+            <option value="players-desc" data-i18n="servers.sortPlayersDesc">Joueurs (décroissant)</option>
+            <option value="players-asc" data-i18n="servers.sortPlayersAsc">Joueurs (croissant)</option>
+            <option value="rating-desc" data-i18n="servers.sortRatingDesc">Note (décroissant)</option>
+            <option value="rating-asc" data-i18n="servers.sortRatingAsc">Note ()croissant)</option>
           </select>
 
           <select id="filter-country" class="filter-select" aria-label="Filtrer par pays">
@@ -197,19 +196,10 @@
       </div>
     </section>
 
-    <!-- Info du jeu / Game Info -->
-    <section id="page-info-du-jeu" class="page">
+    <!-- Le jeu / The Game (Télécharger + Info du jeu) -->
+    <section id="page-le-jeu" class="page">
       <div class="page-header">
-        <h1 data-i18n="nav.gameInfo">Info du jeu</h1>
-        <p data-i18n="gameInfo.subtitle">Liste des serveurs physiques de MultiCraft.</p>
-      </div>
-      <div id="datacenters-container" class="datacenters-grid"></div>
-    </section>
-
-    <!-- Télécharger / Download -->
-    <section id="page-telecharger" class="page">
-      <div class="page-header">
-        <h1 data-i18n="nav.download">Télécharger MultiCraft</h1>
+        <h1 data-i18n="nav.theGame">Le jeu</h1>
         <p data-i18n="download.subtitle">Téléchargez MultiCraft pour Android ou Windows et choisissez la version de
           votre choix.</p>
       </div>
@@ -241,6 +231,12 @@
             data-i18n="download.btnWindows">Télécharger pour Windows</a>
         </article>
       </div>
+
+      <div class="page-header page-header-secondary">
+        <h2 data-i18n="nav.gameInfo">Serveurs physiques</h2>
+        <p data-i18n="gameInfo.subtitle">Liste des serveurs physiques de MultiCraft.</p>
+      </div>
+      <div id="datacenters-container" class="datacenters-grid"></div>
     </section>
   </main>
 
