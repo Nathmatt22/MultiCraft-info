@@ -302,7 +302,7 @@
     </div>
   </div>
 
-  <!-- Widget Chat Global Flottant -->
+  <!-- Widget Chat Flottant -->
   <div id="chat-widget" class="chat-widget">
     <!-- Bulle de chat -->
     <button id="chat-bubble" class="chat-bubble" aria-label="Ouvrir le chat global" title="Chat Global">
@@ -317,7 +317,8 @@
       <!-- Header -->
       <div class="chat-header">
         <div class="chat-header-left">
-          <span class="chat-header-title">Global <span class="chat-header-title-accent">Chat</span></span>
+          <span class="chat-header-title" id="chat-title">Global <span
+              class="chat-header-title-accent">Chat</span></span>
         </div>
         <div class="chat-header-actions">
           <button id="chat-refresh-btn" class="chat-refresh-btn" aria-label="Recharger les messages" title="Recharger">
@@ -328,21 +329,27 @@
           <button id="chat-close-btn" class="chat-close-btn" aria-label="Fermer le chat">✕</button>
         </div>
       </div>
+
       <!-- Tab bar -->
-      <div class="chat-tabs">
-        <button class="chat-tab active">GLOBAL</button>
+      <div class="chat-tabs" id="chat-tabs">
+        <button class="chat-tab active" data-tab="global" onclick="switchChatTab('global')">🌍 GLOBAL</button>
+        <button class="chat-tab" data-tab="french" onclick="switchChatTab('french')">🇫🇷 FR</button>
+        <button class="chat-tab" data-tab="english" onclick="switchChatTab('english')">🇬🇧 EN</button>
+        <button class="chat-tab" data-tab="private" onclick="switchChatTab('private')" id="private-tab" hidden>💬
+          PRIVÉ</button>
       </div>
+
       <!-- Messages -->
       <div id="chat-messages" class="chat-messages">
         <!-- Rempli dynamiquement -->
       </div>
+
       <!-- Footer -->
       <div class="chat-footer">
         <!-- Zone de saisie si connecté -->
         <div id="chat-input-area" hidden>
           <div class="chat-input-row">
-            <textarea id="chat-input" data-i18n-placeholder="chat.placeholder" placeholder="Type a message..."
-              maxlength="500" rows="1"></textarea>
+            <textarea id="chat-input" placeholder="Écrire un message..." maxlength="500" rows="1"></textarea>
             <button id="chat-send-btn" class="chat-send-btn" aria-label="Envoyer">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
@@ -365,7 +372,6 @@
       </div>
     </div>
   </div>
-
 
   <script src="i18n.js"></script>
   <script src="script.js"></script>

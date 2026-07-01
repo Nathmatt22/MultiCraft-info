@@ -2815,3 +2815,127 @@ body.modal-open {
 .chat-refresh-btn.spinning {
   animation: spin 0.6s linear infinite;
 }
+
+/* ── Nouveaux styles pour les salons ── */
+
+.chat-tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(74, 222, 128, 0.1);
+  padding: 0 8px;
+  background: var(--bg-deep);
+  flex-shrink: 0;
+  overflow-x: auto;
+  gap: 2px;
+}
+
+.chat-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.65rem;
+  font-weight: bold;
+  letter-spacing: 0.04em;
+  padding: 8px 10px;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  font-family: var(--font);
+  white-space: nowrap;
+  border-radius: 4px 4px 0 0;
+}
+
+.chat-tab.active {
+  color: var(--green);
+  border-bottom-color: var(--green);
+  background: rgba(74, 222, 128, 0.05);
+}
+
+.chat-tab:hover:not(.active) {
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.chat-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chat-refresh-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s, transform 0.3s;
+}
+
+.chat-refresh-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+
+.chat-refresh-btn.spinning {
+  animation: spin 0.6s linear infinite;
+}
+
+.chat-action-btn.private:hover {
+  background: rgba(88, 101, 242, 0.15) !important;
+  color: #5865F2 !important;
+}
+
+.chat-action-btn.ban:hover {
+  background: rgba(255, 50, 50, 0.15) !important;
+  color: #ff4444 !important;
+}
+
+.chat-action-btn.delete:hover {
+  background: rgba(255, 100, 100, 0.1) !important;
+  color: #f87171 !important;
+}
+
+/* Notification */
+.chat-notification {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 10px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  animation: fadeIn 0.3s ease;
+  white-space: nowrap;
+  z-index: 10;
+  color: white;
+}
+
+.chat-notification.success {
+  background: rgba(74, 222, 128, 0.9);
+}
+
+.chat-notification:not(.success) {
+  background: rgba(248, 113, 113, 0.9);
+}
+
+/* Scroll des tabs sur mobile */
+@media (max-width: 480px) {
+  .chat-tabs {
+    padding: 0 4px;
+  }
+
+  .chat-tab {
+    font-size: 0.55rem;
+    padding: 6px 8px;
+  }
+
+  .chat-msg-actions {
+    opacity: 1;
+  }
+}

@@ -1,43 +1,15 @@
 (function () {
   'use strict';
 
-  /* ── Datacenters (modifiable) ── */
+  /* ── Datacenters ── */
   const DATACENTERS = [
-    {
-      host: 'r1.multicraft.network',
-      location: 'Falkenstein, Allemagne',
-      provider: 'Hetzner'
-    },
-    {
-      host: 'r3.multicraft.network',
-      location: 'Falkenstein Allemagne',
-      provider: 'Hetzner'
-    },
-    {
-      host: 'r4.multicraft.network',
-      location: 'Singapour',
-      provider: 'Leaseweb'
-    },
-    {
-      host: 'r6.multicraft.network',
-      location: 'Hong Kong',
-      provider: 'Hetzner'
-    },
-    {
-      host: 'r7.multicraft.network',
-      location: 'Naaldwijk, Pays-Bas',
-      provider: 'WorldStream'
-    },
-    {
-      host: 'r8.multicraft.network',
-      location: 'Helsinki, Finlande',
-      provider: 'Hetzner'
-    },
-    {
-      host: 'r9.multicraft.network',
-      location: 'Sydney, Autralie',
-      provider: 'OVH'
-    }
+    { host: 'r1.multicraft.network', location: 'Falkenstein, Allemagne', provider: 'Hetzner' },
+    { host: 'r3.multicraft.network', location: 'Falkenstein Allemagne', provider: 'Hetzner' },
+    { host: 'r4.multicraft.network', location: 'Singapour', provider: 'Leaseweb' },
+    { host: 'r6.multicraft.network', location: 'Hong Kong', provider: 'Hetzner' },
+    { host: 'r7.multicraft.network', location: 'Naaldwijk, Pays-Bas', provider: 'WorldStream' },
+    { host: 'r8.multicraft.network', location: 'Helsinki, Finlande', provider: 'Hetzner' },
+    { host: 'r9.multicraft.network', location: 'Sydney, Autralie', provider: 'OVH' }
   ];
 
   /* ── Supabase ── */
@@ -60,17 +32,15 @@
   let discordUser = null;
   let chatMessages = [];
 
-  /* ── Gestion des administrateurs depuis Supabase ── */
+  /* ── Gestion des administrateurs ── */
   let adminList = [];
   let adminCache = null;
   let adminCacheTime = 0;
-  const ADMIN_CACHE_DURATION = 60000; // 1 minute
+  const ADMIN_CACHE_DURATION = 60000;
 
   function getDiscordAvatarUrl(user) {
     if (!user) return '';
-    if (user.avatar) {
-      return 'https://cdn.discordapp.com/avatars/' + user.id + '/' + user.avatar + '.png?size=64';
-    }
+    if (user.avatar) return 'https://cdn.discordapp.com/avatars/' + user.id + '/' + user.avatar + '.png?size=64';
     const index = Number(BigInt(user.id) >> 22n) % 6;
     return 'https://cdn.discordapp.com/embed/avatars/' + index + '.png';
   }
@@ -80,77 +50,26 @@
     return user.global_name || user.username || (window.i18n.t('discord.user') + user.discriminator);
   }
 
-  /* ── Dictionnaire des mots interdits (insultes) ── */
+  /* ── Dictionnaire des mots interdits ── */
   const BAD_WORDS = {
-    'connard': 'insulte',
-    'con': 'insulte',
-    'pute': 'insulte',
-    'prostituée': 'insulte',
-    'salope': 'insulte',
-    'enculé': 'insulte',
-    'fdp': 'insulte',
-    'batard': 'insulte',
-    'bâtard': 'insulte',
-    'merde': 'vulgarité',
-    'putain': 'vulgarité',
-    'bordel': 'vulgarité',
-    'foutre': 'vulgarité',
-    'nique': 'insulte',
-    'nik': 'insulte',
-    'baise': 'vulgarité',
-    'nègre': 'raciste',
-    'negro': 'raciste',
-    'bougnoule': 'raciste',
-    'bicot': 'raciste',
-    'raton': 'raciste',
-    'youpin': 'raciste',
-    'feuj': 'raciste',
-    'pedé': 'homophobe',
-    'pédé': 'homophobe',
-    'gouine': 'homophobe',
-    'tarlouze': 'homophobe',
-    'pd': 'homophobe',
-    'c0nnard': 'insulte',
-    'c0n': 'insulte',
-    'f0utre': 'vulgarité',
-    'n1que': 'insulte',
-    's4lope': 'insulte',
-    'b4tard': 'insulte',
-    'fuck': 'vulgarité',
-    'shit': 'vulgarité',
-    'bitch': 'insulte',
-    'bastard': 'insulte',
-    'asshole': 'insulte',
-    'motherfucker': 'insulte',
-    'mf': 'insulte',
-    'b1tch': 'insulte',
-    '4ssh0le': 'insulte',
-    'f4gg0t': 'homophobe',
-    'salaud': 'insulte',
-    'salopard': 'insulte',
-    'connasse': 'insulte',
-    'grognasse': 'insulte',
-    'pétasse': 'insulte',
-    'traînée': 'insulte',
-    'trainée': 'insulte',
-    'chienne': 'insulte',
-    'suceur': 'insulte',
-    'suceuse': 'insulte',
-    'branleur': 'insulte',
-    'branleuse': 'insulte',
-    'trouduc': 'insulte',
-    'trou du cul': 'insulte',
-    'trouducul': 'insulte',
-    'enculeur': 'insulte',
-    'enculeuse': 'insulte',
-    'débile': 'insulte',
-    'debile': 'insulte',
-    'idiot': 'insulte',
-    'imbécile': 'insulte',
-    'imbecile': 'insulte',
-    'crétin': 'insulte',
-    'cretin': 'insulte',
-    'abruti': 'insulte',
+    'connard': 'insulte', 'con': 'insulte', 'pute': 'insulte', 'prostituée': 'insulte',
+    'salope': 'insulte', 'enculé': 'insulte', 'fdp': 'insulte', 'batard': 'insulte',
+    'bâtard': 'insulte', 'merde': 'vulgarité', 'putain': 'vulgarité', 'bordel': 'vulgarité',
+    'foutre': 'vulgarité', 'nique': 'insulte', 'nik': 'insulte', 'baise': 'vulgarité',
+    'nègre': 'raciste', 'negro': 'raciste', 'bougnoule': 'raciste', 'bicot': 'raciste',
+    'raton': 'raciste', 'youpin': 'raciste', 'feuj': 'raciste', 'pedé': 'homophobe',
+    'pédé': 'homophobe', 'gouine': 'homophobe', 'tarlouze': 'homophobe', 'pd': 'homophobe',
+    'c0nnard': 'insulte', 'c0n': 'insulte', 'f0utre': 'vulgarité', 'n1que': 'insulte',
+    's4lope': 'insulte', 'b4tard': 'insulte', 'fuck': 'vulgarité', 'shit': 'vulgarité',
+    'bitch': 'insulte', 'bastard': 'insulte', 'asshole': 'insulte', 'motherfucker': 'insulte',
+    'mf': 'insulte', 'b1tch': 'insulte', '4ssh0le': 'insulte', 'f4gg0t': 'homophobe',
+    'salaud': 'insulte', 'salopard': 'insulte', 'connasse': 'insulte', 'grognasse': 'insulte',
+    'pétasse': 'insulte', 'traînée': 'insulte', 'trainée': 'insulte', 'chienne': 'insulte',
+    'suceur': 'insulte', 'suceuse': 'insulte', 'branleur': 'insulte', 'branleuse': 'insulte',
+    'trouduc': 'insulte', 'trou du cul': 'insulte', 'trouducul': 'insulte', 'enculeur': 'insulte',
+    'enculeuse': 'insulte', 'débile': 'insulte', 'debile': 'insulte', 'idiot': 'insulte',
+    'imbécile': 'insulte', 'imbecile': 'insulte', 'crétin': 'insulte', 'cretin': 'insulte',
+    'abruti': 'insulte'
   };
 
   /* ── Fonctions de filtrage ── */
@@ -158,12 +77,8 @@
     const lowerText = text.toLowerCase();
     for (const [badWord, category] of Object.entries(BAD_WORDS)) {
       const regex = new RegExp('\\b' + badWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
-      if (regex.test(lowerText)) {
-        return { found: true, word: badWord, category: category };
-      }
-      if (lowerText.includes(badWord.toLowerCase())) {
-        return { found: true, word: badWord, category: category };
-      }
+      if (regex.test(lowerText)) return { found: true, word: badWord, category: category };
+      if (lowerText.includes(badWord.toLowerCase())) return { found: true, word: badWord, category: category };
     }
     return { found: false };
   }
@@ -214,35 +129,19 @@
   async function fetchAdmins() {
     try {
       const now = Date.now();
-      if (adminCache && (now - adminCacheTime) < ADMIN_CACHE_DURATION) {
-        return adminCache;
-      }
-
+      if (adminCache && (now - adminCacheTime) < ADMIN_CACHE_DURATION) return adminCache;
       const url = SUPABASE_URL + '/rest/v1/admins?select=discord_user_id,role';
       const res = await fetch(url, { headers: SUPABASE_HEADERS });
-
-      if (res.status === 404) {
-        console.warn('Table admins non trouvée');
-        adminCache = [];
-        adminCacheTime = now;
-        adminList = [];
-        return [];
-      }
-
+      if (res.status === 404) { adminCache = []; adminCacheTime = now; adminList = []; return []; }
       if (!res.ok) throw new Error('Erreur chargement admins (' + res.status + ')');
-
       const admins = await res.json();
       adminCache = admins || [];
       adminCacheTime = now;
       adminList = (admins || []).map(function (a) { return a.discord_user_id; });
-
       return admins || [];
     } catch (err) {
       console.error('Erreur chargement admins:', err);
-      if (!adminCache) {
-        adminCache = [];
-        adminList = [];
-      }
+      if (!adminCache) { adminCache = []; adminList = []; }
       return adminCache;
     }
   }
@@ -272,16 +171,39 @@
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
       return data && data.length > 0;
+    } catch (err) { console.error('Erreur vérification bannissement:', err); return false; }
+  }
+
+  async function banChatUser(discordUserId, reason) {
+    if (!discordUser || !isAdminUser(discordUser.id)) {
+      showTemporaryNotification('❌ Seul un admin peut bannir');
+      return;
+    }
+    try {
+      const url = SUPABASE_URL + '/rest/v1/banned_users';
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: Object.assign({}, SUPABASE_HEADERS, { 'Prefer': 'return=minimal' }),
+        body: JSON.stringify({
+          discord_user_id: discordUserId,
+          banned_by: discordUser.id,
+          reason: reason || 'Comportement inapproprié',
+          banned_at: new Date().toISOString(),
+        }),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const messagesToRemove = chatMessages.filter(function (m) { return m.discord_user_id === discordUserId; });
+      messagesToRemove.forEach(function (msg) { removeMessageFromUI(msg.id); });
+      showTemporaryNotification('✅ Utilisateur banni !', true);
     } catch (err) {
-      console.error('Erreur vérification bannissement:', err);
-      return false;
+      console.error('Erreur bannissement:', err);
+      showTemporaryNotification('❌ Erreur lors du bannissement');
     }
   }
 
   /* ── Discord OAuth2 ── */
   async function startDiscordLogin() {
-    const state = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(12))))
-      .replace(/[^a-zA-Z0-9]/g, '');
+    const state = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(12)))).replace(/[^a-zA-Z0-9]/g, '');
     sessionStorage.setItem('discord_oauth_state', state);
     const params = new URLSearchParams({
       client_id: DISCORD_CLIENT_ID,
@@ -297,11 +219,7 @@
     const res = await fetch(DISCORD_TOKEN_PROXY, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        code,
-        redirect_uri: DISCORD_REDIRECT_URI,
-        client_id: DISCORD_CLIENT_ID,
-      }),
+      body: JSON.stringify({ code, redirect_uri: DISCORD_REDIRECT_URI, client_id: DISCORD_CLIENT_ID }),
     });
     if (!res.ok) throw new Error('Erreur échange token (' + res.status + ')');
     return res.json();
@@ -316,9 +234,7 @@
   }
 
   function saveDiscordSession(user, accessToken, expiresAt) {
-    try {
-      localStorage.setItem('discord_session', JSON.stringify({ user, accessToken, expiresAt }));
-    } catch { /* ignore */ }
+    try { localStorage.setItem('discord_session', JSON.stringify({ user, accessToken, expiresAt })); } catch { /* ignore */ }
   }
 
   function loadDiscordSession() {
@@ -326,19 +242,13 @@
       const raw = localStorage.getItem('discord_session');
       if (!raw) return null;
       const session = JSON.parse(raw);
-      if (session.expiresAt && Date.now() > session.expiresAt) {
-        localStorage.removeItem('discord_session');
-        return null;
-      }
+      if (session.expiresAt && Date.now() > session.expiresAt) { localStorage.removeItem('discord_session'); return null; }
       return session;
     } catch { return null; }
   }
 
-  function clearDiscordSession() {
-    localStorage.removeItem('discord_session');
-  }
+  function clearDiscordSession() { localStorage.removeItem('discord_session'); }
 
-  /* ── Mise à jour de l'UI ── */
   function updateDiscordUI() {
     const loginBtn = document.getElementById('discord-login-btn');
     const userInfo = document.getElementById('discord-user-info');
@@ -347,87 +257,47 @@
 
     if (discordUser) {
       if (loginBtn) loginBtn.style.display = 'none';
-      if (userInfo) {
-        userInfo.removeAttribute('hidden');
-        userInfo.style.display = 'flex';
-      }
-      if (avatarEl) {
-        avatarEl.src = getDiscordAvatarUrl(discordUser);
-        avatarEl.alt = getDiscordDisplayName(discordUser);
-      }
+      if (userInfo) { userInfo.removeAttribute('hidden'); userInfo.style.display = 'flex'; }
+      if (avatarEl) { avatarEl.src = getDiscordAvatarUrl(discordUser); avatarEl.alt = getDiscordDisplayName(discordUser); }
       if (usernameEl) usernameEl.textContent = getDiscordDisplayName(discordUser);
     } else {
       if (loginBtn) loginBtn.style.display = '';
-      if (userInfo) {
-        userInfo.setAttribute('hidden', '');
-        userInfo.style.display = 'none';
-      }
+      if (userInfo) { userInfo.setAttribute('hidden', ''); userInfo.style.display = 'none'; }
     }
   }
 
-  /* ── Gestion du callback OAuth2 ── */
   async function handleDiscordCallback() {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
     const state = urlParams.get('state');
     const error = urlParams.get('error');
-
-    if (error) {
-      console.warn('Discord OAuth erreur :', error);
-      const cleanUrl = window.location.origin + window.location.pathname + window.location.hash;
-      history.replaceState(null, '', cleanUrl);
-      return;
-    }
-
+    if (error) { console.warn('Discord OAuth erreur :', error); const cleanUrl = window.location.origin + window.location.pathname + window.location.hash; history.replaceState(null, '', cleanUrl); return; }
     if (!code) return;
-
     const savedState = sessionStorage.getItem('discord_oauth_state');
     sessionStorage.removeItem('discord_oauth_state');
-
-    if (!savedState || state !== savedState) {
-      console.error('Discord OAuth : état invalide (CSRF)');
-      const cleanUrl = window.location.origin + window.location.pathname + window.location.hash;
-      history.replaceState(null, '', cleanUrl);
-      return;
-    }
-
+    if (!savedState || state !== savedState) { console.error('Discord OAuth : état invalide (CSRF)'); const cleanUrl = window.location.origin + window.location.pathname + window.location.hash; history.replaceState(null, '', cleanUrl); return; }
     try {
       const tokenData = await exchangeCodeForToken(code);
       const user = await fetchDiscordUser(tokenData.access_token);
       const expiresAt = Date.now() + (tokenData.expires_in || 604800) * 1000;
-
       discordUser = user;
       saveDiscordSession(user, tokenData.access_token, expiresAt);
       updateDiscordUI();
       await fetchAdmins();
-    } catch (err) {
-      console.error('Discord auth erreur :', err);
-    }
-
+    } catch (err) { console.error('Discord auth erreur :', err); }
     const cleanUrl = window.location.origin + window.location.pathname + window.location.hash;
     history.replaceState(null, '', cleanUrl);
   }
 
-  /* ── Init auth ── */
   function initDiscordAuth() {
     const session = loadDiscordSession();
-    if (session) {
-      discordUser = session.user;
-    }
+    if (session) discordUser = session.user;
     updateDiscordUI();
     fetchAdmins();
-
     document.addEventListener('click', function (e) {
-      if (e.target.closest('#discord-login-btn')) {
-        startDiscordLogin();
-      }
-      if (e.target.closest('#discord-logout-btn')) {
-        discordUser = null;
-        clearDiscordSession();
-        updateDiscordUI();
-      }
+      if (e.target.closest('#discord-login-btn')) startDiscordLogin();
+      if (e.target.closest('#discord-logout-btn')) { discordUser = null; clearDiscordSession(); updateDiscordUI(); }
     });
-
     handleDiscordCallback();
   }
 
@@ -447,49 +317,29 @@
 
   function navigateTo(pageId) {
     if (!pages[pageId]) return;
-
-    Object.values(pages).forEach(function (p) {
-      if (p) p.classList.remove('active');
-    });
+    Object.values(pages).forEach(function (p) { if (p) p.classList.remove('active'); });
     if (pages[pageId]) pages[pageId].classList.add('active');
-
     document.querySelectorAll('.nav-link').forEach(function (link) {
-      if (link.dataset.nav === pageId) {
-        link.classList.add('active');
-      } else {
-        link.classList.remove('active');
-      }
+      if (link.dataset.nav === pageId) link.classList.add('active');
+      else link.classList.remove('active');
     });
-
     if (mainNav) mainNav.classList.remove('open');
-    if (navToggle) {
-      navToggle.classList.remove('open');
-      navToggle.setAttribute('aria-expanded', 'false');
-    }
-
+    if (navToggle) { navToggle.classList.remove('open'); navToggle.setAttribute('aria-expanded', 'false'); }
     if (pageId === 'mises-a-jour' && !updatesLoaded) loadUpdates();
     if (pageId === 'info-du-jeu' && !datacentersLoaded) renderDatacenters();
     if (pageId === 'serveurs' && !serversLoaded) loadServers();
     if (pageId === 'telecharger' && !downloadsLoaded) loadDownloads();
-
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function handleRoute() {
     const hash = location.hash.slice(1) || 'accueil';
-    if (pages[hash]) {
-      navigateTo(hash);
-    } else {
-      navigateTo('accueil');
-    }
+    if (pages[hash]) navigateTo(hash);
+    else navigateTo('accueil');
   }
 
   navLinks.forEach(function (el) {
-    el.addEventListener('click', function (e) {
-      e.preventDefault();
-      const page = el.dataset.nav;
-      location.hash = page;
-    });
+    el.addEventListener('click', function (e) { e.preventDefault(); const page = el.dataset.nav; location.hash = page; });
   });
 
   window.addEventListener('hashchange', handleRoute);
@@ -505,16 +355,9 @@
   /* ── Cursor halo ── */
   const halo = document.getElementById('cursor-halo');
   const size = 100 / 2;
+  let haloX = 0, haloY = 0, targetX = 0, targetY = 0, rafId = null;
 
-  let haloX = 0;
-  let haloY = 0;
-  let targetX = 0;
-  let targetY = 0;
-  let rafId = null;
-
-  function isDesktopPointer() {
-    return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-  }
+  function isDesktopPointer() { return window.matchMedia('(hover: hover) and (pointer: fine)').matches; }
 
   function animateHalo() {
     haloX += (targetX - haloX) * 0.08;
@@ -527,16 +370,9 @@
     if (!isDesktopPointer() || !halo) return;
     document.body.classList.add('cursor-active');
     if (!rafId) rafId = requestAnimationFrame(animateHalo);
-    document.addEventListener('mousemove', function (e) {
-      targetX = e.clientX;
-      targetY = e.clientY;
-    });
-    document.addEventListener('mouseleave', function () {
-      document.body.classList.remove('cursor-active');
-    });
-    document.addEventListener('mouseenter', function () {
-      if (isDesktopPointer()) document.body.classList.add('cursor-active');
-    });
+    document.addEventListener('mousemove', function (e) { targetX = e.clientX; targetY = e.clientY; });
+    document.addEventListener('mouseleave', function () { document.body.classList.remove('cursor-active'); });
+    document.addEventListener('mouseenter', function () { if (isDesktopPointer()) document.body.classList.add('cursor-active'); });
   }
 
   /* ── Markdown parser ── */
@@ -551,9 +387,7 @@
       let val = line.slice(idx + 1).trim();
       if (val.startsWith('[') && val.endsWith(']')) {
         val = val.slice(1, -1).split(',').map(function (s) { return s.trim().replace(/^["']|["']$/g, ''); }).filter(Boolean);
-      } else {
-        val = val.replace(/^["']|["']$/g, '');
-      }
+      } else { val = val.replace(/^["']|["']$/g, ''); }
       meta[key] = val;
     });
     return { meta: meta, body: match[2].trim() };
@@ -568,35 +402,21 @@
     if (!md) return '';
     const lines = md.split('\n');
     const html = [];
-    let inCode = false;
-    let codeBuffer = [];
-    let listType = null;
+    let inCode = false, codeBuffer = [], listType = null;
 
-    function closeList() {
-      if (listType === 'ul') { html.push('</ul>'); listType = null; }
-      else if (listType === 'ol') { html.push('</ol>'); listType = null; }
-    }
+    function closeList() { if (listType === 'ul') { html.push('</ul>'); listType = null; } else if (listType === 'ol') { html.push('</ol>'); listType = null; } }
 
     function inline(text) {
       if (!text) return '';
-      return escapeHtml(text)
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.+?)\*/g, '<em>$1</em>')
-        .replace(/`([^`]+)`/g, '<code>$1</code>')
-        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+      return escapeHtml(text).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>').replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
     }
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (line.startsWith('```')) {
         closeList();
-        if (inCode) {
-          html.push('<pre><code>' + escapeHtml(codeBuffer.join('\n')) + '</code></pre>');
-          codeBuffer = [];
-          inCode = false;
-        } else {
-          inCode = true;
-        }
+        if (inCode) { html.push('<pre><code>' + escapeHtml(codeBuffer.join('\n')) + '</code></pre>'); codeBuffer = []; inCode = false; }
+        else { inCode = true; }
         continue;
       }
       if (inCode) { codeBuffer.push(line); continue; }
@@ -608,25 +428,15 @@
       const bq = line.match(/^> (.+)/);
       if (bq) { closeList(); html.push('<blockquote>' + inline(bq[1]) + '</blockquote>'); continue; }
       const ul = line.match(/^[-*] (.+)/);
-      if (ul) {
-        if (listType !== 'ul') { closeList(); html.push('<ul>'); listType = 'ul'; }
-        html.push('<li>' + inline(ul[1]) + '</li>');
-        continue;
-      }
+      if (ul) { if (listType !== 'ul') { closeList(); html.push('<ul>'); listType = 'ul'; } html.push('<li>' + inline(ul[1]) + '</li>'); continue; }
       const ol = line.match(/^\d+\. (.+)/);
-      if (ol) {
-        if (listType !== 'ol') { closeList(); html.push('<ol>'); listType = 'ol'; }
-        html.push('<li>' + inline(ol[1]) + '</li>');
-        continue;
-      }
+      if (ol) { if (listType !== 'ol') { closeList(); html.push('<ol>'); listType = 'ol'; } html.push('<li>' + inline(ol[1]) + '</li>'); continue; }
       if (line.trim() === '') { closeList(); continue; }
       closeList();
       html.push('<p>' + inline(line) + '</p>');
     }
     closeList();
-    if (inCode && codeBuffer.length) {
-      html.push('<pre><code>' + escapeHtml(codeBuffer.join('\n')) + '</code></pre>');
-    }
+    if (inCode && codeBuffer.length) html.push('<pre><code>' + escapeHtml(codeBuffer.join('\n')) + '</code></pre>');
     return html.join('\n');
   }
 
@@ -651,16 +461,9 @@
         const lang = window.i18n.lang;
         let raw = null;
         if (lang === 'en') {
-          try {
-            const enRes = await fetch('updates/' + folder + '/post-en.md');
-            if (enRes.ok) raw = await enRes.text();
-          } catch (e) { /* ignore */ }
+          try { const enRes = await fetch('updates/' + folder + '/post-en.md'); if (enRes.ok) raw = await enRes.text(); } catch (e) { /* ignore */ }
         }
-        if (raw === null) {
-          const res = await fetch('updates/' + folder + '/post.md');
-          if (!res.ok) return null;
-          raw = await res.text();
-        }
+        if (raw === null) { const res = await fetch('updates/' + folder + '/post.md'); if (!res.ok) return null; raw = await res.text(); }
         const parsed = parseFrontmatter(raw);
         return {
           folder: folder,
@@ -671,12 +474,8 @@
         };
       }));
       const valid = posts.filter(function (p) { return p !== null; }).sort(function (a, b) { return new Date(b.date) - new Date(a.date); });
-      if (valid.length === 0) {
-        updatesContainer.innerHTML = '<div class="empty-state"><p>' + window.i18n.t('updates.empty') + '</p></div>';
-      } else {
-        updatesContainer.innerHTML = valid.map(renderUpdatePost).join('');
-        bindLightbox();
-      }
+      if (valid.length === 0) updatesContainer.innerHTML = '<div class="empty-state"><p>' + window.i18n.t('updates.empty') + '</p></div>';
+      else { updatesContainer.innerHTML = valid.map(renderUpdatePost).join(''); bindLightbox(); }
       updatesLoaded = true;
     } catch (err) {
       console.error(err);
@@ -749,8 +548,7 @@
     let html = '';
     for (let i = 0; i < sorted.length; i++) {
       const v = sorted[i];
-      const label = v.version + (v.build ? ' (build ' + v.build + ')' : '') +
-        (v.latest ? ' ' + window.i18n.t('download.latest') : '');
+      const label = v.version + (v.build ? ' (build ' + v.build + ')' : '') + (v.latest ? ' ' + window.i18n.t('download.latest') : '');
       html += '<option value="' + escapeHtml(v.url) + '">' + escapeHtml(label) + '</option>';
     }
     selectEl.innerHTML = html;
@@ -762,26 +560,13 @@
   function loadDownloads() {
     if (!androidSelect && !windowsSelect) return;
     fetch('downloads.json')
-      .then(function (res) {
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        return res.json();
-      })
-      .then(function (data) {
-        downloadsData = data;
-        populateVersionSelect(androidSelect, androidBtn, data.android || []);
-        populateVersionSelect(windowsSelect, windowsBtn, data.windows || []);
-        downloadsLoaded = true;
-      })
-      .catch(function (err) {
-        console.error('Erreur de chargement des téléchargements:', err);
-        if (androidSelect) androidSelect.innerHTML = '<option>' + escapeHtml(window.i18n.t('download.error')) + '</option>';
-        if (windowsSelect) windowsSelect.innerHTML = '<option>' + escapeHtml(window.i18n.t('download.error')) + '</option>';
-      });
+      .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+      .then(function (data) { downloadsData = data; populateVersionSelect(androidSelect, androidBtn, data.android || []); populateVersionSelect(windowsSelect, windowsBtn, data.windows || []); downloadsLoaded = true; })
+      .catch(function (err) { console.error('Erreur de chargement des téléchargements:', err); if (androidSelect) androidSelect.innerHTML = '<option>' + escapeHtml(window.i18n.t('download.error')) + '</option>'; if (windowsSelect) windowsSelect.innerHTML = '<option>' + escapeHtml(window.i18n.t('download.error')) + '</option>'; });
   }
 
   /* ── Serveurs ── */
   const SERVERS_API_URL = 'https://multicraft-servers.creatif-france.workers.dev';
-
   let serversLoaded = false;
   let allServers = [];
   let filteredServers = [];
@@ -794,7 +579,6 @@
   function getServerCountry(server) {
     const text = (server.description || '') + ' ' + (server.server_name || '');
     const lowerText = text.toLowerCase();
-
     const countryPatterns = {
       'France': ['france', 'fr ', 'paris', 'lyon', 'marseille', 'toulouse', 'bordeaux', 'lille', 'nantes', 'strasbourg', '🇫🇷'],
       'Allemagne': ['allemagne', 'germany', 'deutschland', 'de ', 'berlin', 'frankfurt', 'munich', 'münchen', 'hamburg', 'falkenstein', 'nuremberg', '🇩🇪'],
@@ -863,11 +647,8 @@
       'Pérou': ['peru', 'pérou', 'lima', '🇵🇪'],
       'Nouvelle-Zélande': ['new zealand', 'nouvelle-zélande', 'nouvelle zelande', 'auckland', 'wellington', '🇳🇿']
     };
-
     for (const [country, patterns] of Object.entries(countryPatterns)) {
-      for (const pattern of patterns) {
-        if (lowerText.includes(pattern)) return country;
-      }
+      for (const pattern of patterns) { if (lowerText.includes(pattern)) return country; }
     }
     return 'Autre';
   }
@@ -888,9 +669,7 @@
     };
     for (const [location, patterns] of Object.entries(locationPatterns)) {
       let match = true;
-      for (const pattern of patterns) {
-        if (!lowerText.includes(pattern)) { match = false; break; }
-      }
+      for (const pattern of patterns) { if (!lowerText.includes(pattern)) { match = false; break; } }
       if (match) return location;
     }
     return null;
@@ -899,10 +678,7 @@
   function updateCountryFilter() {
     if (!filterCountrySelect) return;
     const countries = new Set();
-    allServers.forEach(function (server) {
-      const country = getServerCountry(server);
-      countries.add(country);
-    });
+    allServers.forEach(function (server) { countries.add(getServerCountry(server)); });
     const sortedCountries = Array.from(countries).sort();
     filterCountrySelect.innerHTML = '<option value="all">🌍 Tous les pays</option>';
     sortedCountries.forEach(function (country) {
@@ -928,12 +704,8 @@
         current.count += 1;
         totals.set(row.server_id, current);
       });
-      totals.forEach(function (value, serverId) {
-        ratings.set(serverId, { avg: value.sum / value.count, count: value.count });
-      });
-    } catch (err) {
-      console.error('Impossible de charger les notes des serveurs', err);
-    }
+      totals.forEach(function (value, serverId) { ratings.set(serverId, { avg: value.sum / value.count, count: value.count }); });
+    } catch (err) { console.error('Impossible de charger les notes des serveurs', err); }
     return ratings;
   }
 
@@ -952,16 +724,12 @@
     const countryFilter = filterCountrySelect ? filterCountrySelect.value : 'all';
     let filtered = filterServers(searchQuery);
     if (countryFilter !== 'all') {
-      filtered = filtered.filter(function (server) {
-        return getServerCountry(server) === countryFilter;
-      });
+      filtered = filtered.filter(function (server) { return getServerCountry(server) === countryFilter; });
     }
     if (sortType === 'rating-desc' || sortType === 'rating-asc') {
       const rated = filtered.filter(function (s) { return s._avgRating != null; });
       const unrated = filtered.filter(function (s) { return s._avgRating == null; });
-      rated.sort(function (a, b) {
-        return sortType === 'rating-desc' ? b._avgRating - a._avgRating : a._avgRating - b._avgRating;
-      });
+      rated.sort(function (a, b) { return sortType === 'rating-desc' ? b._avgRating - a._avgRating : a._avgRating - b._avgRating; });
       filtered = rated.concat(unrated);
     } else {
       filtered.sort(function (a, b) {
@@ -979,19 +747,14 @@
     function walk(node) {
       if (!node || typeof node !== 'object') return;
       if (Array.isArray(node)) { node.forEach(walk); return; }
-      if (node.server_id) {
-        if (!found.has(node.server_id)) found.set(node.server_id, node);
-        return;
-      }
+      if (node.server_id) { if (!found.has(node.server_id)) found.set(node.server_id, node); return; }
       Object.keys(node).forEach(function (key) { walk(node[key]); });
     }
     walk(data);
     return Array.from(found.values());
   }
 
-  function countLabel(n) {
-    return n + ' ' + (n === 1 ? window.i18n.t('servers.count1') : window.i18n.t('servers.countN'));
-  }
+  function countLabel(n) { return n + ' ' + (n === 1 ? window.i18n.t('servers.count1') : window.i18n.t('servers.countN')); }
 
   function renderServerCard(server) {
     const online = !!server.online;
@@ -1012,30 +775,20 @@
     if (!serversContainer) return;
     serversContainer.querySelectorAll('.btn-details').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        try {
-          const serverData = JSON.parse(btn.dataset.server);
-          openServerDetailsModal(serverData);
-        } catch (e) { console.error('Erreur lors du parsing des données du serveur', e); }
+        try { const serverData = JSON.parse(btn.dataset.server); openServerDetailsModal(serverData); } catch (e) { console.error('Erreur lors du parsing des données du serveur', e); }
       });
     });
     serversContainer.querySelectorAll('.btn-players').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        try {
-          const serverData = JSON.parse(btn.dataset.server);
-          openPlayersModal(serverData);
-        } catch (e) { console.error('Erreur lors du parsing des données du serveur', e); }
+        try { const serverData = JSON.parse(btn.dataset.server); openPlayersModal(serverData); } catch (e) { console.error('Erreur lors du parsing des données du serveur', e); }
       });
     });
   }
 
   function renderServers(list) {
     if (!serversContainer) return;
-    if (!list.length) {
-      serversContainer.innerHTML = '<div class="empty-state"><p>' + window.i18n.t('servers.empty') + '</p></div>';
-    } else {
-      serversContainer.innerHTML = list.map(renderServerCard).join('');
-      bindServerCardActions();
-    }
+    if (!list.length) serversContainer.innerHTML = '<div class="empty-state"><p>' + window.i18n.t('servers.empty') + '</p></div>';
+    else { serversContainer.innerHTML = list.map(renderServerCard).join(''); bindServerCardActions(); }
     if (serversCountEl) serversCountEl.textContent = countLabel(list.length);
   }
 
@@ -1062,24 +815,17 @@
       handleServerShare();
     } catch (err) {
       console.error(err);
-      if (serversContainer) {
-        serversContainer.innerHTML = '<div class="error-state"><p>' + window.i18n.t('servers.errorLoad') + '</p><p style="margin-top:0.5rem;font-size:0.85rem;color:var(--text-dim)">Vérifiez votre connexion et réessayez dans un instant.</p></div>';
-      }
+      if (serversContainer) serversContainer.innerHTML = '<div class="error-state"><p>' + window.i18n.t('servers.errorLoad') + '</p><p style="margin-top:0.5rem;font-size:0.85rem;color:var(--text-dim)">Vérifiez votre connexion et réessayez dans un instant.</p></div>';
       if (serversCountEl) serversCountEl.textContent = '';
     }
   }
 
   const searchBtn = document.getElementById('search-btn');
 
-  function triggerServerSearch() {
-    if (!serversLoaded) return;
-    applyFiltersAndSort();
-  }
+  function triggerServerSearch() { if (!serversLoaded) return; applyFiltersAndSort(); }
 
   if (serverSearchInput) {
-    serverSearchInput.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') { e.preventDefault(); triggerServerSearch(); }
-    });
+    serverSearchInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); triggerServerSearch(); } });
     serverSearchInput.addEventListener('search', triggerServerSearch);
   }
   if (searchBtn) searchBtn.addEventListener('click', triggerServerSearch);
@@ -1087,25 +833,16 @@
   if (filterCountrySelect) filterCountrySelect.addEventListener('change', function () { if (!serversLoaded) return; applyFiltersAndSort(); });
 
   /* ══════════════════════════════════════════════════════
-     Système d'avis — Supabase + Auth Discord
+     Système d'avis
      ══════════════════════════════════════════════════════ */
-
   function hasRecentlyReviewed(serverId) {
     if (discordUser) return false;
-    try {
-      const data = JSON.parse(localStorage.getItem('mc_reviewed') || '{}');
-      const last = data[serverId];
-      return last && (Date.now() - last) < 3600000;
-    } catch { return false; }
+    try { const data = JSON.parse(localStorage.getItem('mc_reviewed') || '{}'); const last = data[serverId]; return last && (Date.now() - last) < 3600000; } catch { return false; }
   }
 
   function markReviewed(serverId) {
     if (discordUser) return;
-    try {
-      const data = JSON.parse(localStorage.getItem('mc_reviewed') || '{}');
-      data[serverId] = Date.now();
-      localStorage.setItem('mc_reviewed', JSON.stringify(data));
-    } catch { /* ignore */ }
+    try { const data = JSON.parse(localStorage.getItem('mc_reviewed') || '{}'); data[serverId] = Date.now(); localStorage.setItem('mc_reviewed', JSON.stringify(data)); } catch { /* ignore */ }
   }
 
   async function fetchReviews(serverId) {
@@ -1116,36 +853,17 @@
   }
 
   async function submitReview(serverId, pseudo, rating, text) {
-    const payload = {
-      server_id: serverId,
-      pseudo: (pseudo || 'Anonyme').slice(0, 32).trim() || 'Anonyme',
-      rating: rating,
-      text: (text || '').slice(0, 280).trim(),
-    };
-    if (discordUser) {
-      payload.discord_user_id = discordUser.id;
-      payload.pseudo = getDiscordDisplayName(discordUser).slice(0, 32);
-    }
+    const payload = { server_id: serverId, pseudo: (pseudo || 'Anonyme').slice(0, 32).trim() || 'Anonyme', rating: rating, text: (text || '').slice(0, 280).trim() };
+    if (discordUser) { payload.discord_user_id = discordUser.id; payload.pseudo = getDiscordDisplayName(discordUser).slice(0, 32); }
     const res = await fetch(SUPABASE_URL + '/rest/v1/reviews', {
       method: 'POST',
       headers: { ...SUPABASE_HEADERS, 'Prefer': 'return=minimal' },
       body: JSON.stringify(payload),
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      if (err.code === '23505') throw new Error('already_reviewed');
-      throw new Error(err.message || 'Erreur soumission');
-    }
+    if (!res.ok) { const err = await res.json().catch(() => ({})); if (err.code === '23505') throw new Error('already_reviewed'); throw new Error(err.message || 'Erreur soumission'); }
   }
 
-  function buildStarsHtml(rating, total) {
-    total = total || 5;
-    let html = '';
-    for (let i = 1; i <= total; i++) {
-      html += '<span class="review-star' + (i <= rating ? ' filled' : '') + '">★</span>';
-    }
-    return html;
-  }
+  function buildStarsHtml(rating, total) { total = total || 5; let html = ''; for (let i = 1; i <= total; i++) { html += '<span class="review-star' + (i <= rating ? ' filled' : '') + '">★</span>'; } return html; }
 
   function buildAvgHtml(reviews) {
     if (!reviews.length) return '<span class="reviews-no-badge">' + window.i18n.t('reviews.noReviewsBadge') + '</span>';
@@ -1164,23 +882,11 @@
   function bindStarPicker(picker) {
     if (!picker) return;
     const stars = picker.querySelectorAll('.star-pick');
-    function refresh(selected, hovered) {
-      stars.forEach(function (s) {
-        const v = parseInt(s.dataset.val);
-        s.classList.toggle('active', hovered ? v <= hovered : v <= selected);
-      });
-    }
+    function refresh(selected, hovered) { stars.forEach(function (s) { const v = parseInt(s.dataset.val); s.classList.toggle('active', hovered ? v <= hovered : v <= selected); }); }
     stars.forEach(function (star) {
-      star.addEventListener('mouseenter', function () {
-        refresh(parseInt(picker.dataset.selected || 0), parseInt(star.dataset.val));
-      });
-      star.addEventListener('mouseleave', function () {
-        refresh(parseInt(picker.dataset.selected || 0), 0);
-      });
-      star.addEventListener('click', function () {
-        picker.dataset.selected = star.dataset.val;
-        refresh(parseInt(star.dataset.val), 0);
-      });
+      star.addEventListener('mouseenter', function () { refresh(parseInt(picker.dataset.selected || 0), parseInt(star.dataset.val)); });
+      star.addEventListener('mouseleave', function () { refresh(parseInt(picker.dataset.selected || 0), 0); });
+      star.addEventListener('click', function () { picker.dataset.selected = star.dataset.val; refresh(parseInt(star.dataset.val), 0); });
     });
   }
 
@@ -1191,9 +897,8 @@
     let formHtml;
     if (!discordUser) {
       formHtml = '<div class="review-discord-prompt"><svg width="18" height="18" viewBox="0 0 24 24" fill="#5865F2"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.03.054a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg><span>Connectez-vous pour laisser un avis vérifié.</span><button type="button" class="btn-discord-inline" id="review-discord-login-btn">' + window.i18n.t('reviews.loginBtn') + '</button></div>';
-    } else if (alreadyReviewed) {
-      formHtml = '<p class="review-already-done">' + window.i18n.t('reviews.alreadyDone') + '</p>';
-    } else {
+    } else if (alreadyReviewed) { formHtml = '<p class="review-already-done">' + window.i18n.t('reviews.alreadyDone') + '</p>'; }
+    else {
       formHtml = '<div class="review-form" id="review-form-wrap"><p class="review-form-title">Laisser un avis en tant que <strong style="color:var(--green-muted)">' + escapeHtml(getDiscordDisplayName(discordUser)) + '</strong></p><div class="review-form-fields"><div class="review-form-row"><div class="review-star-picker" data-selected="0"><span class="review-star-picker-label">' + window.i18n.t('reviews.ratingLabel') + '</span><span class="star-pick" data-val="1">★</span><span class="star-pick" data-val="2">★</span><span class="star-pick" data-val="3">★</span><span class="star-pick" data-val="4">★</span><span class="star-pick" data-val="5">★</span></div></div><textarea class="review-input review-text-input" placeholder="' + window.i18n.t('reviews.placeholder') + '" maxlength="280" rows="2"></textarea><div class="review-form-footer"><span class="review-char-count" id="review-char-count">0 / 280</span><button type="button" class="btn btn-primary review-submit-btn">Publier</button></div></div></div>';
     }
     section.innerHTML = '<div class="reviews-divider"></div><div class="reviews-header"><h3 class="reviews-title">' + window.i18n.t('reviews.title') + '</h3><div class="reviews-header-right"><span class="reviews-avg-wrap"><span class="reviews-no-badge">' + window.i18n.t('reviews.loading') + '</span></span><select class="reviews-sort-select" id="reviews-sort-select" aria-label="Trier les avis"><option value="recent">' + window.i18n.t('reviews.sortRecent') + '</option><option value="desc">' + window.i18n.t('reviews.sortDesc') + '</option><option value="asc">' + window.i18n.t('reviews.sortAsc') + '</option></select></div></div><div class="reviews-list" id="reviews-list-inner"><div class="reviews-spinner"><div class="spinner"></div></div></div>' + formHtml;
@@ -1202,69 +907,29 @@
     bindStarPicker(section.querySelector('.review-star-picker'));
     const textarea = section.querySelector('.review-text-input');
     const charCount = section.querySelector('#review-char-count');
-    if (textarea && charCount) {
-      textarea.addEventListener('input', function () { charCount.textContent = textarea.value.length + ' / 280'; });
-    }
+    if (textarea && charCount) { textarea.addEventListener('input', function () { charCount.textContent = textarea.value.length + ' / 280'; }); }
     const submitBtn = section.querySelector('.review-submit-btn');
     const picker = section.querySelector('.review-star-picker');
     if (submitBtn) {
       submitBtn.addEventListener('click', function () {
         const rating = picker ? parseInt(picker.dataset.selected || 0) : 0;
-        if (!rating) {
-          if (picker) { picker.classList.add('shake'); setTimeout(function () { picker.classList.remove('shake'); }, 450); }
-          return;
-        }
+        if (!rating) { if (picker) { picker.classList.add('shake'); setTimeout(function () { picker.classList.remove('shake'); }, 450); } return; }
         const pseudo = discordUser ? getDiscordDisplayName(discordUser) : '';
         const text = textarea ? textarea.value.trim() : '';
         submitBtn.disabled = true;
         submitBtn.textContent = '…';
         submitReview(serverId, pseudo, rating, text)
-          .then(function () {
-            markReviewed(serverId);
-            const form = document.getElementById('review-form-wrap');
-            if (form) form.innerHTML = '<p class="review-success-msg">' + window.i18n.t('reviews.success') + '</p>';
-            return fetchReviews(serverId);
-          })
+          .then(function () { markReviewed(serverId); const form = document.getElementById('review-form-wrap'); if (form) form.innerHTML = '<p class="review-success-msg">' + window.i18n.t('reviews.success') + '</p>'; return fetchReviews(serverId); })
           .then(function (reviews) { refreshReviewsList(reviews, section); })
-          .catch(function (err) {
-            console.error(err);
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Publier';
-            const msg = err.message === 'already_reviewed' ? window.i18n.t('reviews.alreadyLeft') : window.i18n.t('reviews.error') + escapeHtml(err.message);
-            submitBtn.insertAdjacentHTML('afterend', '<p class="review-error-msg">' + msg + '</p>');
-          });
+          .catch(function (err) { console.error(err); submitBtn.disabled = false; submitBtn.textContent = 'Publier'; const msg = err.message === 'already_reviewed' ? window.i18n.t('reviews.alreadyLeft') : window.i18n.t('reviews.error') + escapeHtml(err.message); submitBtn.insertAdjacentHTML('afterend', '<p class="review-error-msg">' + msg + '</p>'); });
       });
     }
-    fetchReviews(serverId)
-      .then(function (reviews) {
-        refreshReviewsList(reviews, section);
-        const sortSelect = section.querySelector('#reviews-sort-select');
-        if (sortSelect) {
-          sortSelect.addEventListener('change', function () { refreshReviewsList(reviews, section); });
-        }
-      })
-      .catch(function () {
-        const list = document.getElementById('reviews-list-inner');
-        if (list) list.innerHTML = '<p class="reviews-empty">Impossible de charger les avis.</p>';
-      });
+    fetchReviews(serverId).then(function (reviews) { refreshReviewsList(reviews, section); const sortSelect = section.querySelector('#reviews-sort-select'); if (sortSelect) { sortSelect.addEventListener('change', function () { refreshReviewsList(reviews, section); }); } }).catch(function () { const list = document.getElementById('reviews-list-inner'); if (list) list.innerHTML = '<p class="reviews-empty">Impossible de charger les avis.</p>'; });
   }
 
-  function sortReviews(reviews, mode) {
-    const sorted = reviews.slice();
-    if (mode === 'desc') sorted.sort(function (a, b) { return b.rating - a.rating; });
-    else if (mode === 'asc') sorted.sort(function (a, b) { return a.rating - b.rating; });
-    return sorted;
-  }
+  function sortReviews(reviews, mode) { const sorted = reviews.slice(); if (mode === 'desc') sorted.sort(function (a, b) { return b.rating - a.rating; }); else if (mode === 'asc') sorted.sort(function (a, b) { return a.rating - b.rating; }); return sorted; }
 
-  function refreshReviewsList(reviews, section) {
-    const sortSelect = section.querySelector('#reviews-sort-select');
-    const mode = sortSelect ? sortSelect.value : 'recent';
-    const sorted = sortReviews(reviews, mode);
-    const list = document.getElementById('reviews-list-inner');
-    if (list) list.innerHTML = buildReviewCardsHtml(sorted);
-    const avgWrap = section.querySelector('.reviews-avg-wrap');
-    if (avgWrap) avgWrap.innerHTML = buildAvgHtml(reviews);
-  }
+  function refreshReviewsList(reviews, section) { const sortSelect = section.querySelector('#reviews-sort-select'); const mode = sortSelect ? sortSelect.value : 'recent'; const sorted = sortReviews(reviews, mode); const list = document.getElementById('reviews-list-inner'); if (list) list.innerHTML = buildReviewCardsHtml(sorted); const avgWrap = section.querySelector('.reviews-avg-wrap'); if (avgWrap) avgWrap.innerHTML = buildAvgHtml(reviews); }
 
   /* ── Pop-up "Rejoindre" ── */
   const serverModal = document.getElementById('server-modal');
@@ -1275,11 +940,7 @@
   const modalCloseBtn2 = document.getElementById('modal-close-btn-2');
   let modalCopyResetTimer = null;
 
-  function syncModalOpenState() {
-    const serverModalOpen = !!(serverModal && !serverModal.hidden);
-    const playersModalOpen = !!(playersModal && !playersModal.hidden);
-    document.body.classList.toggle('modal-open', serverModalOpen || playersModalOpen);
-  }
+  function syncModalOpenState() { const serverModalOpen = !!(serverModal && !serverModal.hidden); const playersModalOpen = !!(playersModal && !playersModal.hidden); document.body.classList.toggle('modal-open', serverModalOpen || playersModalOpen); }
 
   function openServerDetailsModal(server) {
     if (!serverModal) return;
@@ -1307,19 +968,8 @@
       shareBtn.onclick = function () {
         const shareUrl = window.location.origin + window.location.pathname + '#serveurs?server=' + encodeURIComponent(code);
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(shareUrl).then(function () {
-            shareBtn.textContent = '✅ Lien copié !';
-            setTimeout(function () { shareBtn.textContent = window.i18n.t('modal.share'); }, 2000);
-          }).catch(function () {
-            fallbackCopyText(shareUrl);
-            shareBtn.textContent = '✅ Lien copié !';
-            setTimeout(function () { shareBtn.textContent = window.i18n.t('modal.share'); }, 2000);
-          });
-        } else {
-          fallbackCopyText(shareUrl);
-          shareBtn.textContent = '✅ Lien copié !';
-          setTimeout(function () { shareBtn.textContent = window.i18n.t('modal.share'); }, 2000);
-        }
+          navigator.clipboard.writeText(shareUrl).then(function () { shareBtn.textContent = '✅ Lien copié !'; setTimeout(function () { shareBtn.textContent = window.i18n.t('modal.share'); }, 2000); }).catch(function () { fallbackCopyText(shareUrl); shareBtn.textContent = '✅ Lien copié !'; setTimeout(function () { shareBtn.textContent = window.i18n.t('modal.share'); }, 2000); });
+        } else { fallbackCopyText(shareUrl); shareBtn.textContent = '✅ Lien copié !'; setTimeout(function () { shareBtn.textContent = window.i18n.t('modal.share'); }, 2000); }
       };
     }
     const modalEyebrow = document.querySelector('.modal-eyebrow');
@@ -1329,72 +979,29 @@
   function handleServerShare() {
     let serverId = null;
     const hash = window.location.hash;
-    if (hash && hash.includes('?server=')) {
-      const hashParts = hash.split('?');
-      if (hashParts.length > 1) {
-        const params = new URLSearchParams(hashParts[1]);
-        serverId = params.get('server');
-      }
-    }
-    if (!serverId) {
-      const params = new URLSearchParams(window.location.search);
-      serverId = params.get('server');
-    }
-    if (serverId && allServers.length > 0) {
-      const server = allServers.find(function (s) { return s.server_id === serverId; });
-      if (server) {
-        if (!document.getElementById('page-serveurs').classList.contains('active')) navigateTo('serveurs');
-        setTimeout(function () { openServerDetailsModal(server); }, 300);
-      }
-    }
+    if (hash && hash.includes('?server=')) { const hashParts = hash.split('?'); if (hashParts.length > 1) { const params = new URLSearchParams(hashParts[1]); serverId = params.get('server'); } }
+    if (!serverId) { const params = new URLSearchParams(window.location.search); serverId = params.get('server'); }
+    if (serverId && allServers.length > 0) { const server = allServers.find(function (s) { return s.server_id === serverId; }); if (server) { if (!document.getElementById('page-serveurs').classList.contains('active')) navigateTo('serveurs'); setTimeout(function () { openServerDetailsModal(server); }, 300); } }
   }
 
-  function openServerModal(name, code) {
-    if (!serverModal) return;
-    if (modalServerName) modalServerName.textContent = name || window.i18n.t('modal.server');
-    if (modalCode) modalCode.textContent = code || '—';
-    if (modalCopyBtn) modalCopyBtn.textContent = window.i18n.t('modal.copy');
-    serverModal.hidden = false;
-    syncModalOpenState();
-  }
+  function openServerModal(name, code) { if (!serverModal) return; if (modalServerName) modalServerName.textContent = name || window.i18n.t('modal.server'); if (modalCode) modalCode.textContent = code || '—'; if (modalCopyBtn) modalCopyBtn.textContent = window.i18n.t('modal.copy'); serverModal.hidden = false; syncModalOpenState(); }
 
-  function closeServerModal() {
-    if (!serverModal) return;
-    serverModal.hidden = true;
-    syncModalOpenState();
-  }
+  function closeServerModal() { if (!serverModal) return; serverModal.hidden = true; syncModalOpenState(); }
 
-  function fallbackCopyText(text) {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.focus();
-    ta.select();
-    try { document.execCommand('copy'); } catch (e) { /* ignore */ }
-    document.body.removeChild(ta);
-  }
+  function fallbackCopyText(text) { const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.focus(); ta.select(); try { document.execCommand('copy'); } catch (e) { /* ignore */ } document.body.removeChild(ta); }
 
   if (modalCopyBtn) {
     modalCopyBtn.addEventListener('click', function () {
       const code = modalCode ? modalCode.textContent : '';
       if (!code) return;
-      function showCopied() {
-        modalCopyBtn.textContent = 'Copié ✓';
-        clearTimeout(modalCopyResetTimer);
-        modalCopyResetTimer = setTimeout(function () { modalCopyBtn.textContent = window.i18n.t('modal.copy'); }, 1600);
-      }
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(code).then(showCopied).catch(function () { fallbackCopyText(code); showCopied(); });
-      } else { fallbackCopyText(code); showCopied(); }
+      function showCopied() { modalCopyBtn.textContent = 'Copié ✓'; clearTimeout(modalCopyResetTimer); modalCopyResetTimer = setTimeout(function () { modalCopyBtn.textContent = window.i18n.t('modal.copy'); }, 1600); }
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(showCopied).catch(function () { fallbackCopyText(code); showCopied(); });
+      else { fallbackCopyText(code); showCopied(); }
     });
   }
   if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeServerModal);
   if (modalCloseBtn2) modalCloseBtn2.addEventListener('click', closeServerModal);
-  if (serverModal) {
-    serverModal.addEventListener('click', function (e) { if (e.target === serverModal) closeServerModal(); });
-  }
+  if (serverModal) serverModal.addEventListener('click', function (e) { if (e.target === serverModal) closeServerModal(); });
 
   /* ── Pop-up "Liste des joueurs" ── */
   const PLAYERS_API_URL = 'https://goozkziidiwjjabnzbej.creatif-france.workers.dev';
@@ -1408,69 +1015,27 @@
   let currentPlayersList = [];
   let playersFetchAbortController = null;
 
-  function genderIcon(gender) {
-    switch (gender) {
-      case 'staff': return '🛡️';
-      case 'admin': return '👑';
-      case 'female': return '♀️';
-      case 'male': return '♂️';
-      default: return '👤';
-    }
-  }
+  function genderIcon(gender) { switch (gender) { case 'staff': return '🛡️'; case 'admin': return '👑'; case 'female': return '♀️'; case 'male': return '♂️'; default: return '👤'; } }
 
   function renderPlayerTagHtml(tag, fallbackName) {
     if (!tag) return '<span class="player-name">' + escapeHtml(fallbackName || '') + '</span>';
     const ESC = '\u001b';
-    let out = '';
-    let currentColor = null;
-    let inBadge = false;
-    let buffer = '';
-    let badgeBuffer = '';
-    let i = 0;
-
-    function colorSpan(text) {
-      if (!text) return '';
-      const style = currentColor ? ' style="color:' + escapeHtml(currentColor) + '"' : '';
-      return '<span' + style + '>' + escapeHtml(text) + '</span>';
-    }
-    function flushBuffer() {
-      if (buffer) { out += colorSpan(buffer); buffer = ''; }
-    }
+    let out = '', currentColor = null, inBadge = false, buffer = '', badgeBuffer = '', i = 0;
+    function colorSpan(text) { if (!text) return ''; const style = currentColor ? ' style="color:' + escapeHtml(currentColor) + '"' : ''; return '<span' + style + '>' + escapeHtml(text) + '</span>'; }
+    function flushBuffer() { if (buffer) { out += colorSpan(buffer); buffer = ''; } }
     while (i < tag.length) {
       const ch = tag[i];
       if (ch === ESC) {
         const next = tag[i + 1];
-        if (next === '(') {
-          const closeIdx = tag.indexOf(')', i + 2);
-          if (closeIdx === -1) { i += 1; continue; }
-          const code = tag.slice(i + 2, closeIdx);
-          const atIdx = code.indexOf('@');
-          const key = atIdx === -1 ? code : code.slice(0, atIdx);
-          const value = atIdx === -1 ? '' : code.slice(atIdx + 1);
-          if (key === 'c') { flushBuffer(); currentColor = value || null; }
-          else if (key === 'T') { flushBuffer(); inBadge = true; badgeBuffer = ''; }
-          i = closeIdx + 1;
-          continue;
-        }
-        if (next === 'E') {
-          if (inBadge) {
-            const style = currentColor ? ' style="border-color:' + escapeHtml(currentColor) + ';color:' + escapeHtml(currentColor) + '"' : '';
-            out += '<span class="player-badge"' + style + '>' + escapeHtml(badgeBuffer) + '</span>';
-            inBadge = false;
-            badgeBuffer = '';
-          }
-          i += 2;
-          continue;
-        }
-        i += 1;
-        continue;
+        if (next === '(') { const closeIdx = tag.indexOf(')', i + 2); if (closeIdx === -1) { i += 1; continue; } const code = tag.slice(i + 2, closeIdx); const atIdx = code.indexOf('@'); const key = atIdx === -1 ? code : code.slice(0, atIdx); const value = atIdx === -1 ? '' : code.slice(atIdx + 1); if (key === 'c') { flushBuffer(); currentColor = value || null; } else if (key === 'T') { flushBuffer(); inBadge = true; badgeBuffer = ''; } i = closeIdx + 1; continue; }
+        if (next === 'E') { if (inBadge) { const style = currentColor ? ' style="border-color:' + escapeHtml(currentColor) + ';color:' + escapeHtml(currentColor) + '"' : ''; out += '<span class="player-badge"' + style + '>' + escapeHtml(badgeBuffer) + '</span>'; inBadge = false; badgeBuffer = ''; } i += 2; continue; }
+        i += 1; continue;
       }
       if (inBadge) badgeBuffer += ch;
       else buffer += ch;
       i += 1;
     }
-    flushBuffer();
-    if (inBadge && badgeBuffer) out += colorSpan(badgeBuffer);
+    flushBuffer(); if (inBadge && badgeBuffer) out += colorSpan(badgeBuffer);
     return '<span class="player-name">' + out + '</span>';
   }
 
@@ -1480,11 +1045,7 @@
     const q = (query || '').trim().toLowerCase();
     const list = q ? players.filter(function (p) { return (p.name || '').toLowerCase().indexOf(q) !== -1; }) : players;
     if (!list.length) { playersListContainer.innerHTML = '<div class="empty-state"><p>' + window.i18n.t('modal.noPlayerMatch') + '</p></div>'; return; }
-    playersListContainer.innerHTML = list.map(function (p) {
-      const icon = genderIcon(p.gender);
-      const nameHtml = renderPlayerTagHtml(p.tag, p.name);
-      return '<div class="player-row"><span class="player-icon" aria-hidden="true">' + icon + '</span>' + nameHtml + '</div>';
-    }).join('');
+    playersListContainer.innerHTML = list.map(function (p) { const icon = genderIcon(p.gender); const nameHtml = renderPlayerTagHtml(p.tag, p.name); return '<div class="player-row"><span class="player-icon" aria-hidden="true">' + icon + '</span>' + nameHtml + '</div>'; }).join('');
   }
 
   function openPlayersModal(server) {
@@ -1502,62 +1063,95 @@
     if (playersFetchAbortController) playersFetchAbortController.abort();
     playersFetchAbortController = new AbortController();
     fetch(PLAYERS_API_URL + '?server_id=' + encodeURIComponent(serverId), { signal: playersFetchAbortController.signal })
-      .then(function (res) {
-        if (!res.ok) throw new Error('Réponse API invalide (' + res.status + ')');
-        return res.json();
-      })
-      .then(function (data) {
-        const players = Array.isArray(data.players) ? data.players : [];
-        const max = data.max_players != null ? data.max_players : (server.max_players != null ? server.max_players : '?');
-        currentPlayersList = players;
-        if (playersModalCount) playersModalCount.textContent = players.length + ' / ' + max + ' ' + (players.length === 1 ? window.i18n.t('modal.playerOnline1') : window.i18n.t('modal.playerOnlineN'));
-        renderPlayersList(players, playersSearchInput ? playersSearchInput.value : '');
-      })
-      .catch(function (err) {
-        if (err && err.name === 'AbortError') return;
-        console.error(err);
-        if (playersListContainer) playersListContainer.innerHTML = '<div class="error-state"><p>' + window.i18n.t('modal.errorPlayers') + '</p><p style="margin-top:0.5rem;font-size:0.85rem;color:var(--text-dim)">' + window.i18n.t('modal.errorPlayersHint') + '</p></div>';
-      });
+      .then(function (res) { if (!res.ok) throw new Error('Réponse API invalide (' + res.status + ')'); return res.json(); })
+      .then(function (data) { const players = Array.isArray(data.players) ? data.players : []; const max = data.max_players != null ? data.max_players : (server.max_players != null ? server.max_players : '?'); currentPlayersList = players; if (playersModalCount) playersModalCount.textContent = players.length + ' / ' + max + ' ' + (players.length === 1 ? window.i18n.t('modal.playerOnline1') : window.i18n.t('modal.playerOnlineN')); renderPlayersList(players, playersSearchInput ? playersSearchInput.value : ''); })
+      .catch(function (err) { if (err && err.name === 'AbortError') return; console.error(err); if (playersListContainer) playersListContainer.innerHTML = '<div class="error-state"><p>' + window.i18n.t('modal.errorPlayers') + '</p><p style="margin-top:0.5rem;font-size:0.85rem;color:var(--text-dim)">' + window.i18n.t('modal.errorPlayersHint') + '</p></div>'; });
   }
 
-  function closePlayersModal() {
-    if (!playersModal) return;
-    playersModal.hidden = true;
-    syncModalOpenState();
-    if (playersFetchAbortController) playersFetchAbortController.abort();
-  }
+  function closePlayersModal() { if (!playersModal) return; playersModal.hidden = true; syncModalOpenState(); if (playersFetchAbortController) playersFetchAbortController.abort(); }
   if (playersSearchInput) playersSearchInput.addEventListener('input', function () { renderPlayersList(currentPlayersList, playersSearchInput.value); });
   if (playersModalCloseBtn) playersModalCloseBtn.addEventListener('click', closePlayersModal);
   if (playersModalCloseBtn2) playersModalCloseBtn2.addEventListener('click', closePlayersModal);
   if (playersModal) playersModal.addEventListener('click', function (e) { if (e.target === playersModal) closePlayersModal(); });
-  document.addEventListener('keydown', function (e) {
-    if (e.key !== 'Escape') return;
-    if (playersModal && !playersModal.hidden) { closePlayersModal(); return; }
-    if (serverModal && !serverModal.hidden) closeServerModal();
-  });
+  document.addEventListener('keydown', function (e) { if (e.key !== 'Escape') return; if (playersModal && !playersModal.hidden) { closePlayersModal(); return; } if (serverModal && !serverModal.hidden) closeServerModal(); });
 
   /* ── Language change ── */
-  document.addEventListener('langchange', function () {
-    if (serversLoaded) renderServers();
-    if (updatesLoaded && updatesContainer) { updatesLoaded = false; serversLoaded = false; loadUpdates(); loadServers(); }
-    var dcPage = document.getElementById('page-info-du-jeu');
-    if (dcPage && dcPage.classList.contains('active')) renderDatacenters();
-    if (downloadsLoaded && downloadsData) {
-      populateVersionSelect(androidSelect, androidBtn, downloadsData.android || []);
-      populateVersionSelect(windowsSelect, windowsBtn, downloadsData.windows || []);
-    }
-    var modalCopyBtn = document.getElementById('modal-copy-btn');
-    if (modalCopyBtn && !modalCopyBtn._copied) modalCopyBtn.textContent = window.i18n.t('modal.copy');
-  });
+  document.addEventListener('langchange', function () { if (serversLoaded) renderServers(); if (updatesLoaded && updatesContainer) { updatesLoaded = false; serversLoaded = false; loadUpdates(); loadServers(); } var dcPage = document.getElementById('page-info-du-jeu'); if (dcPage && dcPage.classList.contains('active')) renderDatacenters(); if (downloadsLoaded && downloadsData) { populateVersionSelect(androidSelect, androidBtn, downloadsData.android || []); populateVersionSelect(windowsSelect, windowsBtn, downloadsData.windows || []); } var modalCopyBtn = document.getElementById('modal-copy-btn'); if (modalCopyBtn && !modalCopyBtn._copied) modalCopyBtn.textContent = window.i18n.t('modal.copy'); });
 
   /* ── Son ── */
-  document.addEventListener('click', function (e) {
-    const target = e.target.closest('a, button, [role="button"]');
-    if (target) {
-      const audio = new Audio('btn_press.ogg');
-      audio.play().catch(function (err) { console.warn('Impossible de jouer le son :', err); });
+  document.addEventListener('click', function (e) { const target = e.target.closest('a, button, [role="button"]'); if (target) { const audio = new Audio('btn_press.ogg'); audio.play().catch(function (err) { console.warn('Impossible de jouer le son :', err); }); } });
+
+  /* ── Gestion des salons (tabs) ── */
+  let currentChatTab = 'global';
+  let currentPrivatePartner = null;
+
+  function switchChatTab(tab, partnerId, partnerName) {
+    currentChatTab = tab;
+    document.querySelectorAll('.chat-tab').forEach(function (el) { el.classList.remove('active'); });
+    var tabEl = document.querySelector('.chat-tab[data-tab="' + tab + '"]');
+    if (tabEl) tabEl.classList.add('active');
+    var privateTab = document.getElementById('private-tab');
+    if (privateTab) {
+      if (tab === 'private' && partnerId) { privateTab.removeAttribute('hidden'); privateTab.textContent = '💬 ' + (partnerName || 'Privé'); }
+      else if (tab !== 'private') { privateTab.setAttribute('hidden', ''); }
     }
-  });
+    var title = document.getElementById('chat-title');
+    if (title) {
+      var titles = { 'global': 'Global <span class="chat-header-title-accent">Chat</span>', 'french': '🇫🇷 <span class="chat-header-title-accent">French</span>', 'english': '🇬🇧 <span class="chat-header-title-accent">English</span>', 'private': '💬 <span class="chat-header-title-accent">Privé</span>' };
+      title.innerHTML = titles[tab] || titles.global;
+    }
+    loadChatMessagesForTab(tab, partnerId);
+  }
+
+  function startPrivateChat(userId, username) {
+    if (!discordUser) { showTemporaryNotification('❌ Connectez-vous pour envoyer des messages privés'); return; }
+    if (userId === discordUser.id) { showTemporaryNotification('❌ Vous ne pouvez pas vous envoyer un message à vous-même'); return; }
+    currentPrivatePartner = userId;
+    var chatWindow = document.getElementById('chat-window');
+    if (chatWindow && chatWindow.hidden) { openChat(); }
+    switchChatTab('private', userId, username);
+    showTemporaryNotification('💬 Conversation privée avec ' + username, true);
+  }
+
+  async function loadChatMessagesForTab(tab, partnerId) {
+    if (!chatMessagesEl) return;
+    chatMessagesEl.innerHTML = '<p class="chat-loading">Chargement…</p>';
+    try {
+      var url;
+      if (tab === 'private' && partnerId && discordUser) {
+        url = SUPABASE_URL + '/rest/v1/private_messages?select=*&or=(sender_id.eq.' + discordUser.id + ',receiver_id.eq.' + discordUser.id + ')&order=created_at.asc&limit=50';
+      } else {
+        url = SUPABASE_URL + '/rest/v1/global_chat?select=*&channel=eq.' + tab + '&order=created_at.desc&limit=50';
+      }
+      var res = await fetch(url, { headers: SUPABASE_HEADERS });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var msgs = await res.json();
+      if (tab === 'private') {
+        msgs = msgs.filter(function (m) { return (m.sender_id === discordUser.id && m.receiver_id === partnerId) || (m.sender_id === partnerId && m.receiver_id === discordUser.id); });
+      }
+      msgs.reverse();
+      chatMessages = msgs;
+      if (msgs.length === 0) { chatMessagesEl.innerHTML = '<p class="chat-empty">Aucun message pour le moment.</p>'; }
+      else { renderMessagesForTab(msgs, tab); scrollToBottom(); }
+    } catch (err) { console.error('Erreur chargement messages:', err); chatMessagesEl.innerHTML = '<p class="chat-error">Impossible de charger les messages.</p>'; }
+  }
+
+  function renderMessagesForTab(msgs, tab) {
+    if (!chatMessagesEl) return;
+    if (tab === 'private') { chatMessagesEl.innerHTML = msgs.map(buildPrivateMessageHtml).join(''); }
+    else { chatMessagesEl.innerHTML = msgs.map(buildMessageHtml).join(''); }
+    addMessageActions();
+  }
+
+  function buildPrivateMessageHtml(msg) {
+    var isSelf = discordUser && msg.sender_id === discordUser.id;
+    var senderName = isSelf ? msg.sender_username : msg.receiver_username;
+    var avatar = isSelf ? getDiscordAvatarUrl(discordUser) : '';
+    var avatarHtml = avatar ? '<img class="chat-msg-avatar" src="' + escapeHtmlChat(avatar) + '" alt="' + escapeHtmlChat(senderName) + '" loading="lazy">' : '<div class="chat-msg-avatar" style="background:var(--bg-card);display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--text-muted);border-radius:50%;">' + escapeHtmlChat(senderName.charAt(0).toUpperCase()) + '</div>';
+    var time = msg.created_at ? formatTime(msg.created_at) : '';
+    var userDisplay = senderName || 'Anonyme';
+    return '<div class="chat-msg' + (isSelf ? ' self' : '') + '" data-msg-id="' + escapeHtmlChat(msg.id) + '">' + avatarHtml + '<div class="chat-msg-content"><span class="chat-msg-user">' + escapeHtmlChat(userDisplay) + ' <span style="font-size:0.6rem;color:var(--text-dim);">(privé)</span></span><div class="chat-msg-bubble">' + escapeHtmlChat(msg.message) + '</div><span class="chat-msg-time">' + time + '</span></div></div>';
+  }
 
   /* ── Global Chat Widget ── */
   (function () {
@@ -1579,16 +1173,9 @@
 
     if (!chatBubble || !chatWindow) return;
 
-    function escapeHtmlChat(str) {
-      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-    }
+    function escapeHtmlChat(str) { return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'); }
 
-    function formatTime(isoString) {
-      var d = new Date(isoString);
-      var h = d.getHours().toString().padStart(2, '0');
-      var m = d.getMinutes().toString().padStart(2, '0');
-      return h + ':' + m;
-    }
+    function formatTime(isoString) { var d = new Date(isoString); var h = d.getHours().toString().padStart(2, '0'); var m = d.getMinutes().toString().padStart(2, '0'); return h + ':' + m; }
 
     function buildMessageHtml(msg) {
       var isSelf = discordUser && msg.discord_user_id === discordUser.id;
@@ -1599,31 +1186,17 @@
       var adminBadge = isAdminUserFlag ? ' <span style="color:#5865F2;font-size:0.6rem;">🛡️ Admin</span>' : '';
       var editedIndicator = msg.is_edited ? ' <span style="font-size:0.6rem;color:var(--text-dim);font-style:italic;">(modifié)</span>' : '';
       var censoredIndicator = (msg.is_censored && isAdminUser(discordUser ? discordUser.id : null)) ? ' <span style="font-size:0.6rem;color:#fbbf24;font-style:italic;">(censuré)</span>' : '';
-      return '<div class="chat-msg' + (isSelf ? ' self' : '') + '" data-msg-id="' + escapeHtmlChat(msg.id) + '">' + avatar + '<div class="chat-msg-content"><span class="chat-msg-user">' + escapeHtmlChat(userDisplay) + adminBadge + '</span><div class="chat-msg-bubble">' + escapeHtmlChat(msg.message) + '</div><span class="chat-msg-time">' + time + editedIndicator + censoredIndicator + '</span></div></div>';
+      var channelBadge = msg.channel && msg.channel !== 'global' ? ' <span style="font-size:0.5rem;color:var(--text-dim);background:rgba(255,255,255,0.05);padding:1px 6px;border-radius:8px;">#' + msg.channel + '</span>' : '';
+      return '<div class="chat-msg' + (isSelf ? ' self' : '') + '" data-msg-id="' + escapeHtmlChat(msg.id) + '">' + avatar + '<div class="chat-msg-content"><span class="chat-msg-user">' + escapeHtmlChat(userDisplay) + adminBadge + channelBadge + '</span><div class="chat-msg-bubble">' + escapeHtmlChat(msg.message) + '</div><span class="chat-msg-time">' + time + editedIndicator + censoredIndicator + '</span></div></div>';
     }
 
-    function scrollToBottom() {
-      if (chatMessagesEl) chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
-    }
+    function scrollToBottom() { if (chatMessagesEl) chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight; }
 
     function renderMessages(msgs, append) {
       if (!chatMessagesEl) return;
-      if (!msgs || msgs.length === 0) {
-        if (!append) chatMessagesEl.innerHTML = '<p class="chat-empty">Aucun message pour le moment. Soyez le premier !</p>';
-        return;
-      }
-      if (!append) {
-        chatMessagesEl.innerHTML = msgs.map(buildMessageHtml).join('');
-      } else {
-        msgs.forEach(function (msg) {
-          var empty = chatMessagesEl.querySelector('.chat-empty');
-          if (empty) empty.remove();
-          var div = document.createElement('div');
-          div.innerHTML = buildMessageHtml(msg);
-          var firstChild = div.firstChild;
-          if (firstChild) chatMessagesEl.appendChild(firstChild);
-        });
-      }
+      if (!msgs || msgs.length === 0) { if (!append) chatMessagesEl.innerHTML = '<p class="chat-empty">Aucun message pour le moment. Soyez le premier !</p>'; return; }
+      if (!append) chatMessagesEl.innerHTML = msgs.map(buildMessageHtml).join('');
+      else { msgs.forEach(function (msg) { var empty = chatMessagesEl.querySelector('.chat-empty'); if (empty) empty.remove(); var div = document.createElement('div'); div.innerHTML = buildMessageHtml(msg); var firstChild = div.firstChild; if (firstChild) chatMessagesEl.appendChild(firstChild); }); }
       addMessageActions();
     }
 
@@ -1632,44 +1205,37 @@
       if (!chatMessagesEl) return;
       try {
         isPolling = true;
-        var url = SUPABASE_URL + '/rest/v1/global_chat?select=*&order=created_at.desc&limit=50';
+        var channel = currentChatTab === 'private' ? 'global' : currentChatTab;
+        var url = SUPABASE_URL + '/rest/v1/global_chat?select=*&channel=eq.' + channel + '&order=created_at.desc&limit=50';
+        if (currentChatTab === 'private' && currentPrivatePartner) {
+          url = SUPABASE_URL + '/rest/v1/private_messages?select=*&or=(sender_id.eq.' + discordUser.id + ',receiver_id.eq.' + discordUser.id + ')&order=created_at.asc&limit=50';
+        }
         var res = await fetch(url, { headers: SUPABASE_HEADERS });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         var msgs = await res.json();
-        msgs.reverse();
-        if (initial) {
-          chatMessages = msgs;
-          if (msgs.length === 0) chatMessagesEl.innerHTML = '<p class="chat-empty">Aucun message pour le moment. Soyez le premier !</p>';
-          else { renderMessages(msgs, false); scrollToBottom(); }
-        } else {
-          if (msgs.length > 0) {
-            var existingIds = new Set(chatMessages.map(function (m) { return m.id; }));
-            var newMsgs = msgs.filter(function (m) { return !existingIds.has(m.id); });
-            if (newMsgs.length > 0) {
-              var wasAtBottom = chatMessagesEl.scrollHeight - chatMessagesEl.scrollTop - chatMessagesEl.clientHeight < 40;
-              chatMessages = chatMessages.concat(newMsgs);
-              renderMessages(newMsgs, true);
-              if (wasAtBottom) scrollToBottom();
-              if (!chatOpen && chatBadge) {
-                chatBadge.removeAttribute('hidden');
-                chatBadge.textContent = newMsgs.length > 9 ? '9+' : String(newMsgs.length);
-              }
-            }
-          }
+        if (currentChatTab === 'private') {
+          msgs = msgs.filter(function (m) { return (m.sender_id === discordUser.id && m.receiver_id === currentPrivatePartner) || (m.sender_id === currentPrivatePartner && m.receiver_id === discordUser.id); });
         }
-      } catch (err) {
-        console.warn('Chat: erreur chargement messages', err);
-        if (initial && chatMessagesEl) chatMessagesEl.innerHTML = '<p class="chat-error">Impossible de charger le chat.<br>Vérifiez votre connexion.</p>';
-      } finally { isPolling = false; }
+        msgs.reverse();
+        chatMessages = msgs;
+        if (msgs.length === 0) chatMessagesEl.innerHTML = '<p class="chat-empty">Aucun message pour le moment.</p>';
+        else { renderMessagesForTab(msgs, currentChatTab); scrollToBottom(); }
+      } catch (err) { console.warn('Chat: erreur chargement messages', err); if (initial && chatMessagesEl) chatMessagesEl.innerHTML = '<p class="chat-error">Impossible de charger le chat.<br>Vérifiez votre connexion.</p>'; }
+      finally { isPolling = false; }
     }
 
     function refreshChat() {
       if (chatOpen && chatMessagesEl) {
         if (chatRefreshBtn) chatRefreshBtn.classList.add('spinning');
         chatMessagesEl.innerHTML = '<p class="chat-loading">Rechargement…</p>';
-        loadChatMessages(true).then(function () { if (chatRefreshBtn) chatRefreshBtn.classList.remove('spinning'); })
-          .catch(function () { if (chatRefreshBtn) chatRefreshBtn.classList.remove('spinning'); });
+        loadChatMessagesForTab(currentChatTab, currentPrivatePartner).then(function () { if (chatRefreshBtn) chatRefreshBtn.classList.remove('spinning'); }).catch(function () { if (chatRefreshBtn) chatRefreshBtn.classList.remove('spinning'); });
       }
+    }
+
+    function removeMessageFromUI(messageId) {
+      var msgElement = document.querySelector('[data-msg-id="' + messageId + '"]');
+      if (msgElement) { msgElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease'; msgElement.style.opacity = '0'; msgElement.style.transform = 'scale(0.9)'; setTimeout(function () { if (msgElement.parentNode) msgElement.remove(); }, 300); }
+      chatMessages = chatMessages.filter(function (m) { return m.id !== messageId; });
     }
 
     async function deleteChatMessage(messageId, discordUserId) {
@@ -1678,28 +1244,14 @@
       const isOwner = discordUser.id === discordUserId;
       if (!isAdmin && !isOwner) { showTemporaryNotification('❌ Vous ne pouvez pas supprimer ce message'); return; }
       try {
-        const url = SUPABASE_URL + '/rest/v1/global_chat?id=eq.' + messageId;
-        const res = await fetch(url, { method: 'DELETE', headers: SUPABASE_HEADERS });
+        var table = currentChatTab === 'private' ? 'private_messages' : 'global_chat';
+        var url = SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + messageId;
+        var res = await fetch(url, { method: 'DELETE', headers: SUPABASE_HEADERS });
         if (res.status === 404) { removeMessageFromUI(messageId); showTemporaryNotification('✅ Message supprimé', true); return; }
         if (!res.ok) throw new Error('HTTP ' + res.status);
         removeMessageFromUI(messageId);
         showTemporaryNotification('✅ Message supprimé', true);
-      } catch (err) {
-        console.error('Erreur suppression:', err);
-        removeMessageFromUI(messageId);
-        showTemporaryNotification('✅ Message retiré', true);
-      }
-    }
-
-    function removeMessageFromUI(messageId) {
-      var msgElement = document.querySelector('[data-msg-id="' + messageId + '"]');
-      if (msgElement) {
-        msgElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-        msgElement.style.opacity = '0';
-        msgElement.style.transform = 'scale(0.9)';
-        setTimeout(function () { if (msgElement.parentNode) msgElement.remove(); }, 300);
-      }
-      chatMessages = chatMessages.filter(function (m) { return m.id !== messageId; });
+      } catch (err) { console.error('Erreur suppression:', err); removeMessageFromUI(messageId); showTemporaryNotification('✅ Message retiré', true); }
     }
 
     async function editChatMessage(messageId, newText, discordUserId) {
@@ -1709,14 +1261,12 @@
       if (!isAdmin && !isOwner) { showTemporaryNotification('❌ Vous ne pouvez pas modifier ce message'); return; }
       newText = newText.trim();
       if (!newText || newText.length > 500) { showTemporaryNotification('❌ Message invalide'); return; }
-      const badWordCheck = hasBadWords(newText);
-      if (badWordCheck.found && (badWordCheck.category === 'raciste' || badWordCheck.category === 'homophobe')) {
-        showTemporaryNotification('❌ Message bloqué - contenu raciste/homophobe interdit');
-        return;
-      }
+      var badWordCheck = hasBadWords(newText);
+      if (badWordCheck.found && (badWordCheck.category === 'raciste' || badWordCheck.category === 'homophobe')) { showTemporaryNotification('❌ Message bloqué - contenu raciste/homophobe interdit'); return; }
       var finalText = badWordCheck.found ? censorMessage(newText) : newText;
       try {
-        var url = SUPABASE_URL + '/rest/v1/global_chat?id=eq.' + messageId;
+        var table = currentChatTab === 'private' ? 'private_messages' : 'global_chat';
+        var url = SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + messageId;
         var res = await fetch(url, {
           method: 'PATCH',
           headers: Object.assign({}, SUPABASE_HEADERS, { 'Prefer': 'return=representation' }),
@@ -1724,26 +1274,13 @@
         });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         var updated = await res.json();
-        if (updated && updated.length > 0) {
-          updateMessageUI(messageId, finalText);
-          showTemporaryNotification('✅ Message modifié', true);
-        }
-      } catch (err) {
-        console.error('Erreur modification:', err);
-        showTemporaryNotification('❌ Erreur lors de la modification');
-      }
+        if (updated && updated.length > 0) { updateMessageUI(messageId, finalText); showTemporaryNotification('✅ Message modifié', true); }
+      } catch (err) { console.error('Erreur modification:', err); showTemporaryNotification('❌ Erreur lors de la modification'); }
     }
 
     function updateMessageUI(messageId, finalText) {
       var msgElement = document.querySelector('[data-msg-id="' + messageId + '"]');
-      if (msgElement) {
-        var bubble = msgElement.querySelector('.chat-msg-bubble');
-        if (bubble) bubble.textContent = finalText;
-        var timeElement = msgElement.querySelector('.chat-msg-time');
-        if (timeElement && !timeElement.textContent.includes('modifié')) {
-          timeElement.textContent = timeElement.textContent + ' modifié';
-        }
-      }
+      if (msgElement) { var bubble = msgElement.querySelector('.chat-msg-bubble'); if (bubble) bubble.textContent = finalText; var timeElement = msgElement.querySelector('.chat-msg-time'); if (timeElement && !timeElement.textContent.includes('modifié')) timeElement.textContent = timeElement.textContent + ' modifié'; }
       var msgIndex = chatMessages.findIndex(function (m) { return m.id === messageId; });
       if (msgIndex !== -1) { chatMessages[msgIndex].message = finalText; chatMessages[msgIndex].is_edited = true; }
     }
@@ -1756,25 +1293,36 @@
         var msg = chatMessages.find(function (m) { return m.id === msgId; });
         if (!msg) return;
         var isAdmin = isAdminUser(discordUser.id);
-        var isOwner = discordUser.id === msg.discord_user_id;
+        var isOwner = discordUser.id === msg.discord_user_id || discordUser.id === msg.sender_id;
         var mod = canModerate(discordUser.id);
         if (!isAdmin && !isOwner && !mod) return;
         var actionsDiv = document.createElement('div');
         actionsDiv.className = 'chat-msg-actions';
         actionsDiv.style.cssText = 'display: flex; gap: 4px; margin-top: 4px;';
+
+        // Bouton Message Privé
+        if (discordUser && msg.discord_user_id && msg.discord_user_id !== discordUser.id && currentChatTab !== 'private') {
+          var privateBtn = document.createElement('button');
+          privateBtn.className = 'chat-action-btn private';
+          privateBtn.textContent = '💬';
+          privateBtn.title = 'Message privé';
+          privateBtn.style.cssText = 'background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; transition: background 0.15s, color 0.15s;';
+          privateBtn.onmouseover = function () { this.style.background = 'rgba(88, 101, 242, 0.15)'; this.style.color = '#5865F2'; };
+          privateBtn.onmouseout = function () { this.style.background = 'none'; this.style.color = 'var(--text-dim)'; };
+          privateBtn.addEventListener('click', function (e) { e.stopPropagation(); startPrivateChat(msg.discord_user_id, msg.username); });
+          actionsDiv.appendChild(privateBtn);
+        }
+
         if (isAdmin || mod) {
           var viewBtn = document.createElement('button');
           viewBtn.className = 'chat-action-btn';
           viewBtn.textContent = '👁️';
           viewBtn.title = "Voir l'original";
           viewBtn.style.cssText = 'background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; transition: background 0.15s, color 0.15s;';
-          viewBtn.addEventListener('click', function (e) {
-            e.stopPropagation();
-            if (msg.original_message) alert('Message original:\n' + msg.original_message + '\n\n(Message censuré affiché)');
-            else alert('Message original:\n' + msg.message);
-          });
+          viewBtn.addEventListener('click', function (e) { e.stopPropagation(); if (msg.original_message) alert('Message original:\n' + msg.original_message + '\n\n(Message censuré affiché)'); else alert('Message original:\n' + msg.message); });
           actionsDiv.appendChild(viewBtn);
         }
+
         if (isOwner || isAdmin || mod) {
           var editBtn = document.createElement('button');
           editBtn.className = 'chat-action-btn';
@@ -1783,16 +1331,10 @@
           editBtn.style.cssText = 'background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; transition: background 0.15s, color 0.15s;';
           editBtn.onmouseover = function () { this.style.background = 'rgba(255,255,255,0.05)'; this.style.color = 'var(--text)'; };
           editBtn.onmouseout = function () { this.style.background = 'none'; this.style.color = 'var(--text-dim)'; };
-          editBtn.addEventListener('click', function (e) {
-            e.stopPropagation();
-            var bubble = msgElement.querySelector('.chat-msg-bubble');
-            if (!bubble) return;
-            var currentText = bubble.textContent;
-            var newText = prompt('Modifier le message:', currentText);
-            if (newText !== null && newText !== currentText) editChatMessage(msgId, newText, msg.discord_user_id);
-          });
+          editBtn.addEventListener('click', function (e) { e.stopPropagation(); var bubble = msgElement.querySelector('.chat-msg-bubble'); if (!bubble) return; var currentText = bubble.textContent; var newText = prompt('Modifier le message:', currentText); if (newText !== null && newText !== currentText) editChatMessage(msgId, newText, msg.discord_user_id || msg.sender_id); });
           actionsDiv.appendChild(editBtn);
         }
+
         if (isOwner || isAdmin || mod) {
           var deleteBtn = document.createElement('button');
           deleteBtn.className = 'chat-action-btn delete';
@@ -1801,16 +1343,23 @@
           deleteBtn.style.cssText = 'background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; transition: background 0.15s, color 0.15s;';
           deleteBtn.onmouseover = function () { this.style.background = 'rgba(255,100,100,0.1)'; this.style.color = '#f87171'; };
           deleteBtn.onmouseout = function () { this.style.background = 'none'; this.style.color = 'var(--text-dim)'; };
-          deleteBtn.addEventListener('click', function (e) {
-            e.stopPropagation();
-            if (confirm('Supprimer ce message ?')) deleteChatMessage(msgId, msg.discord_user_id);
-          });
+          deleteBtn.addEventListener('click', function (e) { e.stopPropagation(); if (confirm('Supprimer ce message ?')) deleteChatMessage(msgId, msg.discord_user_id || msg.sender_id); });
           actionsDiv.appendChild(deleteBtn);
         }
-        if (actionsDiv.children.length > 0) {
-          var contentDiv = msgElement.querySelector('.chat-msg-content');
-          if (contentDiv) contentDiv.appendChild(actionsDiv);
+
+        if (isAdmin || mod) {
+          var banBtn = document.createElement('button');
+          banBtn.className = 'chat-action-btn ban';
+          banBtn.textContent = '🚫';
+          banBtn.title = 'Bannir l\'utilisateur';
+          banBtn.style.cssText = 'background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; transition: background 0.15s, color 0.15s;';
+          banBtn.onmouseover = function () { this.style.background = 'rgba(255,50,50,0.15)'; this.style.color = '#ff4444'; };
+          banBtn.onmouseout = function () { this.style.background = 'none'; this.style.color = 'var(--text-dim)'; };
+          banBtn.addEventListener('click', function (e) { e.stopPropagation(); var userToBan = msg.discord_user_id || msg.sender_id; var userName = msg.username || 'Inconnu'; var reason = prompt('Raison du bannissement de "' + userName + '" ?', 'Comportement inapproprié'); if (reason !== null && confirm('Bannir définitivement "' + userName + '" du chat ?')) { banChatUser(userToBan, reason); } });
+          actionsDiv.appendChild(banBtn);
         }
+
+        if (actionsDiv.children.length > 0) { var contentDiv = msgElement.querySelector('.chat-msg-content'); if (contentDiv) contentDiv.appendChild(actionsDiv); }
       });
     }
 
@@ -1820,15 +1369,32 @@
       if (banned) { showTemporaryNotification('❌ Vous avez été banni du chat'); return; }
       var text = chatInput.value.trim();
       if (!text || text.length > 500) return;
+
+      // Message privé
+      if (currentChatTab === 'private' && currentPrivatePartner) {
+        var partnerName = 'Inconnu';
+        var partnerMsg = chatMessages.find(function (m) { return m.sender_id === currentPrivatePartner || m.receiver_id === currentPrivatePartner; });
+        if (partnerMsg) partnerName = partnerMsg.sender_id === currentPrivatePartner ? partnerMsg.sender_username : partnerMsg.receiver_username;
+        chatInput.value = ''; chatInput.style.height = 'auto'; chatSendBtn.disabled = true;
+        try {
+          var payload = { sender_id: discordUser.id, receiver_id: currentPrivatePartner, sender_username: getDiscordDisplayName(discordUser).slice(0, 32), receiver_username: partnerName, message: text.trim(), created_at: new Date().toISOString() };
+          var res = await fetch(SUPABASE_URL + '/rest/v1/private_messages', { method: 'POST', headers: Object.assign({}, SUPABASE_HEADERS, { 'Prefer': 'return=representation' }), body: JSON.stringify(payload) });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          var created = await res.json();
+          if (created && created.length > 0) { var msg = created[0]; chatMessages.push(msg); renderMessagesForTab([msg], 'private'); scrollToBottom(); }
+        } catch (err) { console.error('Erreur envoi message privé:', err); showTemporaryNotification('❌ Erreur lors de l\'envoi du message privé'); }
+        finally { chatSendBtn.disabled = false; chatInput.focus(); }
+        return;
+      }
+
+      // Message public
+      var channel = currentChatTab;
       var badWordCheck = hasBadWords(text);
       if (badWordCheck.found && (badWordCheck.category === 'raciste' || badWordCheck.category === 'homophobe')) {
         chatInput.value = '';
         chatInput.placeholder = '❌ Message bloqué - contenu raciste/homophobe interdit';
         chatInput.style.borderColor = '#f87171';
-        setTimeout(function () {
-          chatInput.placeholder = window.i18n.t('chat.placeholder') || 'Écrire un message...';
-          chatInput.style.borderColor = '';
-        }, 3000);
+        setTimeout(function () { chatInput.placeholder = window.i18n.t('chat.placeholder') || 'Écrire un message...'; chatInput.style.borderColor = ''; }, 3000);
         return;
       }
       var finalText = text;
@@ -1838,43 +1404,18 @@
       chatInput.style.height = 'auto';
       chatSendBtn.disabled = true;
       try {
-        var payload = {
-          discord_user_id: discordUser.id,
-          username: getDiscordDisplayName(discordUser).slice(0, 32),
-          avatar_url: getDiscordAvatarUrl(discordUser),
-          message: finalText,
-          original_message: badWordCheck.found ? text : null,
-          is_censored: badWordCheck.found,
-        };
-        var res = await fetch(SUPABASE_URL + '/rest/v1/global_chat', {
-          method: 'POST',
-          headers: Object.assign({}, SUPABASE_HEADERS, { 'Prefer': 'return=representation' }),
-          body: JSON.stringify(payload),
-        });
+        var payload = { discord_user_id: discordUser.id, username: getDiscordDisplayName(discordUser).slice(0, 32), avatar_url: getDiscordAvatarUrl(discordUser), message: finalText, channel: channel, original_message: badWordCheck.found ? text : null, is_censored: badWordCheck.found };
+        var res = await fetch(SUPABASE_URL + '/rest/v1/global_chat', { method: 'POST', headers: Object.assign({}, SUPABASE_HEADERS, { 'Prefer': 'return=representation' }), body: JSON.stringify(payload) });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         var created = await res.json();
-        if (created && created.length > 0) {
-          var msg = created[0];
-          var existingIds = new Set(chatMessages.map(function (m) { return m.id; }));
-          if (!existingIds.has(msg.id)) {
-            chatMessages.push(msg);
-            renderMessages([msg], true);
-            scrollToBottom();
-            if (badWordCheck.found && warningMessage) showTemporaryNotification(warningMessage);
-          }
-        }
+        if (created && created.length > 0) { var msg = created[0]; var existingIds = new Set(chatMessages.map(function (m) { return m.id; })); if (!existingIds.has(msg.id)) { chatMessages.push(msg); renderMessagesForTab([msg], channel); scrollToBottom(); if (badWordCheck.found && warningMessage) showTemporaryNotification(warningMessage); } }
       } catch (err) { console.error('Chat: erreur envoi', err); }
       finally { chatSendBtn.disabled = false; chatInput.focus(); }
     }
 
     function updateChatAuthState() {
-      if (discordUser) {
-        if (chatInputArea) chatInputArea.removeAttribute('hidden');
-        if (chatLoginArea) chatLoginArea.setAttribute('hidden', '');
-      } else {
-        if (chatInputArea) chatInputArea.setAttribute('hidden', '');
-        if (chatLoginArea) chatLoginArea.removeAttribute('hidden');
-      }
+      if (discordUser) { if (chatInputArea) chatInputArea.removeAttribute('hidden'); if (chatLoginArea) chatLoginArea.setAttribute('hidden', ''); }
+      else { if (chatInputArea) chatInputArea.setAttribute('hidden', ''); if (chatLoginArea) chatLoginArea.removeAttribute('hidden'); }
     }
 
     function openChat() {
@@ -1882,9 +1423,9 @@
       chatWindow.removeAttribute('hidden');
       if (chatBadge) chatBadge.setAttribute('hidden', '');
       updateChatAuthState();
-      if (chatMessages.length === 0) { chatMessagesEl.innerHTML = '<p class="chat-loading">Chargement…</p>'; loadChatMessages(true); }
+      if (chatMessages.length === 0) { chatMessagesEl.innerHTML = '<p class="chat-loading">Chargement…</p>'; loadChatMessagesForTab(currentChatTab, currentPrivatePartner); }
       else scrollToBottom();
-      if (!chatPollingInterval) chatPollingInterval = setInterval(function () { loadChatMessages(false); }, 3000);
+      if (!chatPollingInterval) chatPollingInterval = setInterval(function () { loadChatMessagesForTab(currentChatTab, currentPrivatePartner); }, 3000);
       if (chatInput) chatInput.focus();
     }
 
@@ -1892,6 +1433,7 @@
       chatOpen = false;
       chatWindow.setAttribute('hidden', '');
       if (chatPollingInterval) { clearInterval(chatPollingInterval); chatPollingInterval = null; }
+      if (currentChatTab === 'private') { currentChatTab = 'global'; currentPrivatePartner = null; switchChatTab('global'); }
     }
 
     chatBubble.addEventListener('click', function () { chatOpen ? closeChat() : openChat(); });
@@ -1899,55 +1441,27 @@
     if (chatRefreshBtn) chatRefreshBtn.addEventListener('click', refreshChat);
     if (chatSendBtn) chatSendBtn.addEventListener('click', sendChatMessage);
     if (chatInput) {
-      chatInput.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
-      });
-      chatInput.addEventListener('input', function () {
-        this.style.height = 'auto';
-        this.style.height = Math.min(this.scrollHeight, 80) + 'px';
-      });
+      chatInput.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } });
+      chatInput.addEventListener('input', function () { this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 80) + 'px'; });
     }
-
-    if (chatWidgetLoginBtn) {
-      chatWidgetLoginBtn.addEventListener('click', function () {
-        startDiscordLogin();
-      });
-    }
+    if (chatWidgetLoginBtn) chatWidgetLoginBtn.addEventListener('click', function () { startDiscordLogin(); });
 
     document.addEventListener('click', function (e) {
-      if (e.target.closest('#discord-login-btn') || e.target.closest('#discord-logout-btn')) {
-        setTimeout(function () {
-          updateChatAuthState();
-          if (chatOpen) refreshChat();
-        }, 200);
-      }
+      if (e.target.closest('#discord-login-btn') || e.target.closest('#discord-logout-btn')) { setTimeout(function () { updateChatAuthState(); if (chatOpen) refreshChat(); }, 200); }
     });
 
     var _origHandleDiscordCallback = handleDiscordCallback;
-    handleDiscordCallback = function () {
-      _origHandleDiscordCallback.apply(this, arguments);
-      setTimeout(function () {
-        updateChatAuthState();
-        if (chatOpen) refreshChat();
-      }, 300);
-    };
+    handleDiscordCallback = function () { _origHandleDiscordCallback.apply(this, arguments); setTimeout(function () { updateChatAuthState(); if (chatOpen) refreshChat(); }, 300); };
 
     var _origUpdateDiscordUI = updateDiscordUI;
-    updateDiscordUI = function () {
-      _origUpdateDiscordUI();
-      updateChatAuthState();
-    };
+    updateDiscordUI = function () { _origUpdateDiscordUI(); updateChatAuthState(); };
 
     if (!chatWindow.hidden) openChat();
 
-    window.addEventListener('beforeunload', function () {
-      if (chatPollingInterval) {
-        clearInterval(chatPollingInterval);
-        chatPollingInterval = null;
-      }
-    });
-
+    window.addEventListener('beforeunload', function () { if (chatPollingInterval) { clearInterval(chatPollingInterval); chatPollingInterval = null; } });
     window.refreshChat = refreshChat;
+    window.switchChatTab = switchChatTab;
+    window.startPrivateChat = startPrivateChat;
 
   })();
 
@@ -1967,17 +1481,11 @@
   const hashParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
   if (urlParams.get('server') || hashParams.get('server')) {
     if (!document.getElementById('page-serveurs').classList.contains('active')) {
-      if (!serversLoaded) {
-        loadServers();
-      } else {
-        handleServerShare();
-      }
+      if (!serversLoaded) loadServers();
+      else handleServerShare();
     }
   }
 
-  // Rafraîchir les admins toutes les 5 minutes
-  setInterval(function () {
-    fetchAdmins();
-  }, 300000);
+  setInterval(function () { fetchAdmins(); }, 300000);
 
 })();
