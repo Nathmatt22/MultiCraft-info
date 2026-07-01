@@ -38,6 +38,16 @@
   let adminCacheTime = 0;
   const ADMIN_CACHE_DURATION = 60000;
 
+  /* ── Variables globales pour le chat ── */
+  let currentChatTab = 'global';
+  let currentPrivatePartner = null;
+  let chatMessagesEl = null;
+  let chatInput = null;
+  let chatSendBtn = null;
+  let chatOpen = false;
+  let chatPollingInterval = null;
+  let isPolling = false;
+
   function getDiscordAvatarUrl(user) {
     if (!user) return '';
     if (user.avatar) return 'https://cdn.discordapp.com/avatars/' + user.id + '/' + user.avatar + '.png?size=64';
@@ -1081,65 +1091,114 @@
   /* ── Son ── */
   document.addEventListener('click', function (e) { const target = e.target.closest('a, button, [role="button"]'); if (target) { const audio = new Audio('btn_press.ogg'); audio.play().catch(function (err) { console.warn('Impossible de jouer le son :', err); }); } });
 
-  /* ── Gestion des salons (tabs) ── */
-  let currentChatTab = 'global';
-  let currentPrivatePartner = null;
+  /* ── Fonctions du chat ── */
 
   function switchChatTab(tab, partnerId, partnerName) {
     currentChatTab = tab;
-    document.querySelectorAll('.chat-tab').forEach(function (el) { el.classList.remove('active'); });
+
+    document.querySelectorAll('.chat-tab').forEach(function (el) {
+      el.classList.remove('active');
+    });
+
     var tabEl = document.querySelector('.chat-tab[data-tab="' + tab + '"]');
     if (tabEl) tabEl.classList.add('active');
+
     var privateTab = document.getElementById('private-tab');
     if (privateTab) {
-      if (tab === 'private' && partnerId) { privateTab.removeAttribute('hidden'); privateTab.textContent = '💬 ' + (partnerName || 'Privé'); }
-      else if (tab !== 'private') { privateTab.setAttribute('hidden', ''); }
+      if (tab === 'private' && partnerId) {
+        privateTab.removeAttribute('hidden');
+        privateTab.textContent = '💬 ' + (partnerName || 'Privé');
+      } else if (tab !== 'private') {
+        privateTab.setAttribute('hidden', '');
+      }
     }
+
     var title = document.getElementById('chat-title');
     if (title) {
-      var titles = { 'global': 'Global <span class="chat-header-title-accent">Chat</span>', 'french': '🇫🇷 <span class="chat-header-title-accent">French</span>', 'english': '🇬🇧 <span class="chat-header-title-accent">English</span>', 'private': '💬 <span class="chat-header-title-accent">Privé</span>' };
+      var titles = {
+        'global': 'Global <span class="chat-header-title-accent">Chat</span>',
+        'french': '🇫🇷 <span class="chat-header-title-accent">French</span>',
+        'english': '🇬🇧 <span class="chat-header-title-accent">English</span>',
+        'private': '💬 <span class="chat-header-title-accent">Privé</span>'
+      };
       title.innerHTML = titles[tab] || titles.global;
     }
+
     loadChatMessagesForTab(tab, partnerId);
   }
 
   function startPrivateChat(userId, username) {
-    if (!discordUser) { showTemporaryNotification('❌ Connectez-vous pour envoyer des messages privés'); return; }
-    if (userId === discordUser.id) { showTemporaryNotification('❌ Vous ne pouvez pas vous envoyer un message à vous-même'); return; }
+    if (!discordUser) {
+      showTemporaryNotification('❌ Connectez-vous pour envoyer des messages privés');
+      return;
+    }
+    if (userId === discordUser.id) {
+      showTemporaryNotification('❌ Vous ne pouvez pas vous envoyer un message à vous-même');
+      return;
+    }
     currentPrivatePartner = userId;
     var chatWindow = document.getElementById('chat-window');
-    if (chatWindow && chatWindow.hidden) { openChat(); }
+    if (chatWindow && chatWindow.hidden) {
+      openChat();
+    }
     switchChatTab('private', userId, username);
     showTemporaryNotification('💬 Conversation privée avec ' + username, true);
   }
 
   async function loadChatMessagesForTab(tab, partnerId) {
-    if (!chatMessagesEl) return;
+    chatMessagesEl = document.getElementById('chat-messages');
+    if (!chatMessagesEl) {
+      console.error('chatMessagesEl not found');
+      return;
+    }
+
     chatMessagesEl.innerHTML = '<p class="chat-loading">Chargement…</p>';
+
     try {
       var url;
       if (tab === 'private' && partnerId && discordUser) {
-        url = SUPABASE_URL + '/rest/v1/private_messages?select=*&or=(sender_id.eq.' + discordUser.id + ',receiver_id.eq.' + discordUser.id + ')&order=created_at.asc&limit=50';
+        url = SUPABASE_URL + '/rest/v1/private_messages?select=*&or=(sender_id.eq.' +
+          discordUser.id + ',receiver_id.eq.' + discordUser.id +
+          ')&order=created_at.asc&limit=50';
       } else {
         url = SUPABASE_URL + '/rest/v1/global_chat?select=*&channel=eq.' + tab + '&order=created_at.desc&limit=50';
       }
+
       var res = await fetch(url, { headers: SUPABASE_HEADERS });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       var msgs = await res.json();
+
       if (tab === 'private') {
-        msgs = msgs.filter(function (m) { return (m.sender_id === discordUser.id && m.receiver_id === partnerId) || (m.sender_id === partnerId && m.receiver_id === discordUser.id); });
+        msgs = msgs.filter(function (m) {
+          return (m.sender_id === discordUser.id && m.receiver_id === partnerId) ||
+            (m.sender_id === partnerId && m.receiver_id === discordUser.id);
+        });
       }
+
       msgs.reverse();
       chatMessages = msgs;
-      if (msgs.length === 0) { chatMessagesEl.innerHTML = '<p class="chat-empty">Aucun message pour le moment.</p>'; }
-      else { renderMessagesForTab(msgs, tab); scrollToBottom(); }
-    } catch (err) { console.error('Erreur chargement messages:', err); chatMessagesEl.innerHTML = '<p class="chat-error">Impossible de charger les messages.</p>'; }
+
+      if (msgs.length === 0) {
+        chatMessagesEl.innerHTML = '<p class="chat-empty">Aucun message pour le moment.</p>';
+      } else {
+        renderMessagesForTab(msgs, tab);
+        scrollToBottom();
+      }
+    } catch (err) {
+      console.error('Erreur chargement messages:', err);
+      chatMessagesEl.innerHTML = '<p class="chat-error">Impossible de charger les messages.</p>';
+    }
   }
 
   function renderMessagesForTab(msgs, tab) {
+    chatMessagesEl = document.getElementById('chat-messages');
     if (!chatMessagesEl) return;
-    if (tab === 'private') { chatMessagesEl.innerHTML = msgs.map(buildPrivateMessageHtml).join(''); }
-    else { chatMessagesEl.innerHTML = msgs.map(buildMessageHtml).join(''); }
+
+    if (tab === 'private') {
+      chatMessagesEl.innerHTML = msgs.map(buildPrivateMessageHtml).join('');
+    } else {
+      chatMessagesEl.innerHTML = msgs.map(buildMessageHtml).join('');
+    }
     addMessageActions();
   }
 
@@ -1147,319 +1206,621 @@
     var isSelf = discordUser && msg.sender_id === discordUser.id;
     var senderName = isSelf ? msg.sender_username : msg.receiver_username;
     var avatar = isSelf ? getDiscordAvatarUrl(discordUser) : '';
-    var avatarHtml = avatar ? '<img class="chat-msg-avatar" src="' + escapeHtmlChat(avatar) + '" alt="' + escapeHtmlChat(senderName) + '" loading="lazy">' : '<div class="chat-msg-avatar" style="background:var(--bg-card);display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--text-muted);border-radius:50%;">' + escapeHtmlChat(senderName.charAt(0).toUpperCase()) + '</div>';
+
+    var avatarHtml = avatar
+      ? '<img class="chat-msg-avatar" src="' + escapeHtmlChat(avatar) + '" alt="' + escapeHtmlChat(senderName) + '" loading="lazy">'
+      : '<div class="chat-msg-avatar" style="background:var(--bg-card);display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--text-muted);border-radius:50%;">' + escapeHtmlChat(senderName.charAt(0).toUpperCase()) + '</div>';
+
     var time = msg.created_at ? formatTime(msg.created_at) : '';
     var userDisplay = senderName || 'Anonyme';
-    return '<div class="chat-msg' + (isSelf ? ' self' : '') + '" data-msg-id="' + escapeHtmlChat(msg.id) + '">' + avatarHtml + '<div class="chat-msg-content"><span class="chat-msg-user">' + escapeHtmlChat(userDisplay) + ' <span style="font-size:0.6rem;color:var(--text-dim);">(privé)</span></span><div class="chat-msg-bubble">' + escapeHtmlChat(msg.message) + '</div><span class="chat-msg-time">' + time + '</span></div></div>';
+
+    return '<div class="chat-msg' + (isSelf ? ' self' : '') + '" data-msg-id="' + escapeHtmlChat(msg.id) + '">'
+      + avatarHtml
+      + '<div class="chat-msg-content">'
+      + '<span class="chat-msg-user">' + escapeHtmlChat(userDisplay) + ' <span style="font-size:0.6rem;color:var(--text-dim);">(privé)</span></span>'
+      + '<div class="chat-msg-bubble">' + escapeHtmlChat(msg.message) + '</div>'
+      + '<span class="chat-msg-time">' + time + '</span>'
+      + '</div>'
+      + '</div>';
   }
 
-  /* ── Global Chat Widget ── */
-  (function () {
-    var chatOpen = false;
-    var chatPollingInterval = null;
-    var isPolling = false;
-
-    var chatBubble = document.getElementById('chat-bubble');
-    var chatWindow = document.getElementById('chat-window');
-    var chatCloseBtn = document.getElementById('chat-close-btn');
-    var chatRefreshBtn = document.getElementById('chat-refresh-btn');
-    var chatMessagesEl = document.getElementById('chat-messages');
-    var chatInputArea = document.getElementById('chat-input-area');
-    var chatLoginArea = document.getElementById('chat-login-area');
-    var chatInput = document.getElementById('chat-input');
-    var chatSendBtn = document.getElementById('chat-send-btn');
-    var chatWidgetLoginBtn = document.getElementById('chat-widget-login-btn');
-    var chatBadge = document.getElementById('chat-badge');
-
-    if (!chatBubble || !chatWindow) return;
-
-    function escapeHtmlChat(str) { return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;'); }
-
-    function formatTime(isoString) { var d = new Date(isoString); var h = d.getHours().toString().padStart(2, '0'); var m = d.getMinutes().toString().padStart(2, '0'); return h + ':' + m; }
-
-    function buildMessageHtml(msg) {
-      var isSelf = discordUser && msg.discord_user_id === discordUser.id;
-      var avatar = msg.avatar_url ? '<img class="chat-msg-avatar" src="' + escapeHtmlChat(msg.avatar_url) + '" alt="' + escapeHtmlChat(msg.username) + '" loading="lazy">' : '<div class="chat-msg-avatar" style="background:var(--bg-card);display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--text-muted);border-radius:50%;">' + escapeHtmlChat(msg.username.charAt(0).toUpperCase()) + '</div>';
-      var time = msg.created_at ? formatTime(msg.created_at) : '';
-      var userDisplay = msg.username || 'Anonyme';
-      var isAdminUserFlag = isAdminUser(msg.discord_user_id);
-      var adminBadge = isAdminUserFlag ? ' <span style="color:#5865F2;font-size:0.6rem;">🛡️ Admin</span>' : '';
-      var editedIndicator = msg.is_edited ? ' <span style="font-size:0.6rem;color:var(--text-dim);font-style:italic;">(modifié)</span>' : '';
-      var censoredIndicator = (msg.is_censored && isAdminUser(discordUser ? discordUser.id : null)) ? ' <span style="font-size:0.6rem;color:#fbbf24;font-style:italic;">(censuré)</span>' : '';
-      var channelBadge = msg.channel && msg.channel !== 'global' ? ' <span style="font-size:0.5rem;color:var(--text-dim);background:rgba(255,255,255,0.05);padding:1px 6px;border-radius:8px;">#' + msg.channel + '</span>' : '';
-      return '<div class="chat-msg' + (isSelf ? ' self' : '') + '" data-msg-id="' + escapeHtmlChat(msg.id) + '">' + avatar + '<div class="chat-msg-content"><span class="chat-msg-user">' + escapeHtmlChat(userDisplay) + adminBadge + channelBadge + '</span><div class="chat-msg-bubble">' + escapeHtmlChat(msg.message) + '</div><span class="chat-msg-time">' + time + editedIndicator + censoredIndicator + '</span></div></div>';
+  function scrollToBottom() {
+    chatMessagesEl = document.getElementById('chat-messages');
+    if (chatMessagesEl) {
+      chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
     }
+  }
 
-    function scrollToBottom() { if (chatMessagesEl) chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight; }
+  function escapeHtmlChat(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
 
-    function renderMessages(msgs, append) {
-      if (!chatMessagesEl) return;
-      if (!msgs || msgs.length === 0) { if (!append) chatMessagesEl.innerHTML = '<p class="chat-empty">Aucun message pour le moment. Soyez le premier !</p>'; return; }
-      if (!append) chatMessagesEl.innerHTML = msgs.map(buildMessageHtml).join('');
-      else { msgs.forEach(function (msg) { var empty = chatMessagesEl.querySelector('.chat-empty'); if (empty) empty.remove(); var div = document.createElement('div'); div.innerHTML = buildMessageHtml(msg); var firstChild = div.firstChild; if (firstChild) chatMessagesEl.appendChild(firstChild); }); }
-      addMessageActions();
+  function formatTime(isoString) {
+    try {
+      var d = new Date(isoString);
+      var h = d.getHours().toString().padStart(2, '0');
+      var m = d.getMinutes().toString().padStart(2, '0');
+      return h + ':' + m;
+    } catch (e) {
+      return '';
     }
+  }
 
-    async function loadChatMessages(initial) {
-      if (isPolling && !initial) return;
-      if (!chatMessagesEl) return;
-      try {
-        isPolling = true;
-        var channel = currentChatTab === 'private' ? 'global' : currentChatTab;
-        var url = SUPABASE_URL + '/rest/v1/global_chat?select=*&channel=eq.' + channel + '&order=created_at.desc&limit=50';
-        if (currentChatTab === 'private' && currentPrivatePartner) {
-          url = SUPABASE_URL + '/rest/v1/private_messages?select=*&or=(sender_id.eq.' + discordUser.id + ',receiver_id.eq.' + discordUser.id + ')&order=created_at.asc&limit=50';
-        }
-        var res = await fetch(url, { headers: SUPABASE_HEADERS });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        var msgs = await res.json();
-        if (currentChatTab === 'private') {
-          msgs = msgs.filter(function (m) { return (m.sender_id === discordUser.id && m.receiver_id === currentPrivatePartner) || (m.sender_id === currentPrivatePartner && m.receiver_id === discordUser.id); });
-        }
-        msgs.reverse();
-        chatMessages = msgs;
-        if (msgs.length === 0) chatMessagesEl.innerHTML = '<p class="chat-empty">Aucun message pour le moment.</p>';
-        else { renderMessagesForTab(msgs, currentChatTab); scrollToBottom(); }
-      } catch (err) { console.warn('Chat: erreur chargement messages', err); if (initial && chatMessagesEl) chatMessagesEl.innerHTML = '<p class="chat-error">Impossible de charger le chat.<br>Vérifiez votre connexion.</p>'; }
-      finally { isPolling = false; }
+  function buildMessageHtml(msg) {
+    var isSelf = discordUser && msg.discord_user_id === discordUser.id;
+    var avatar = msg.avatar_url
+      ? '<img class="chat-msg-avatar" src="' + escapeHtmlChat(msg.avatar_url) + '" alt="' + escapeHtmlChat(msg.username) + '" loading="lazy">'
+      : '<div class="chat-msg-avatar" style="background:var(--bg-card);display:flex;align-items:center;justify-content:center;font-size:0.7rem;color:var(--text-muted);border-radius:50%;">' + escapeHtmlChat(msg.username ? msg.username.charAt(0).toUpperCase() : '?') + '</div>';
+
+    var time = msg.created_at ? formatTime(msg.created_at) : '';
+    var userDisplay = msg.username || 'Anonyme';
+    var isAdminUserFlag = isAdminUser(msg.discord_user_id);
+    var adminBadge = isAdminUserFlag ? ' <span style="color:#5865F2;font-size:0.6rem;">🛡️ Admin</span>' : '';
+    var editedIndicator = msg.is_edited ? ' <span style="font-size:0.6rem;color:var(--text-dim);font-style:italic;">(modifié)</span>' : '';
+    var censoredIndicator = (msg.is_censored && isAdminUser(discordUser ? discordUser.id : null))
+      ? ' <span style="font-size:0.6rem;color:#fbbf24;font-style:italic;">(censuré)</span>' : '';
+    var channelBadge = msg.channel && msg.channel !== 'global'
+      ? ' <span style="font-size:0.5rem;color:var(--text-dim);background:rgba(255,255,255,0.05);padding:1px 6px;border-radius:8px;">#' + escapeHtmlChat(msg.channel) + '</span>'
+      : '';
+
+    return '<div class="chat-msg' + (isSelf ? ' self' : '') + '" data-msg-id="' + escapeHtmlChat(msg.id) + '">'
+      + avatar
+      + '<div class="chat-msg-content">'
+      + '<span class="chat-msg-user">' + escapeHtmlChat(userDisplay) + adminBadge + channelBadge + '</span>'
+      + '<div class="chat-msg-bubble">' + escapeHtmlChat(msg.message) + '</div>'
+      + '<span class="chat-msg-time">' + time + editedIndicator + censoredIndicator + '</span>'
+      + '</div>'
+      + '</div>';
+  }
+
+  function removeMessageFromUI(messageId) {
+    var msgElement = document.querySelector('[data-msg-id="' + messageId + '"]');
+    if (msgElement) {
+      msgElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+      msgElement.style.opacity = '0';
+      msgElement.style.transform = 'scale(0.9)';
+      setTimeout(function () {
+        if (msgElement.parentNode) msgElement.remove();
+      }, 300);
     }
+    chatMessages = chatMessages.filter(function (m) { return m.id !== messageId; });
+  }
 
-    function refreshChat() {
-      if (chatOpen && chatMessagesEl) {
-        if (chatRefreshBtn) chatRefreshBtn.classList.add('spinning');
-        chatMessagesEl.innerHTML = '<p class="chat-loading">Rechargement…</p>';
-        loadChatMessagesForTab(currentChatTab, currentPrivatePartner).then(function () { if (chatRefreshBtn) chatRefreshBtn.classList.remove('spinning'); }).catch(function () { if (chatRefreshBtn) chatRefreshBtn.classList.remove('spinning'); });
-      }
+  async function deleteChatMessage(messageId, discordUserId) {
+    if (!discordUser) return;
+    var isAdmin = isAdminUser(discordUser.id);
+    var isOwner = discordUser.id === discordUserId;
+    if (!isAdmin && !isOwner) {
+      showTemporaryNotification('❌ Vous ne pouvez pas supprimer ce message');
+      return;
     }
-
-    function removeMessageFromUI(messageId) {
-      var msgElement = document.querySelector('[data-msg-id="' + messageId + '"]');
-      if (msgElement) { msgElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease'; msgElement.style.opacity = '0'; msgElement.style.transform = 'scale(0.9)'; setTimeout(function () { if (msgElement.parentNode) msgElement.remove(); }, 300); }
-      chatMessages = chatMessages.filter(function (m) { return m.id !== messageId; });
-    }
-
-    async function deleteChatMessage(messageId, discordUserId) {
-      if (!discordUser) return;
-      const isAdmin = isAdminUser(discordUser.id);
-      const isOwner = discordUser.id === discordUserId;
-      if (!isAdmin && !isOwner) { showTemporaryNotification('❌ Vous ne pouvez pas supprimer ce message'); return; }
-      try {
-        var table = currentChatTab === 'private' ? 'private_messages' : 'global_chat';
-        var url = SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + messageId;
-        var res = await fetch(url, { method: 'DELETE', headers: SUPABASE_HEADERS });
-        if (res.status === 404) { removeMessageFromUI(messageId); showTemporaryNotification('✅ Message supprimé', true); return; }
-        if (!res.ok) throw new Error('HTTP ' + res.status);
+    try {
+      var table = currentChatTab === 'private' ? 'private_messages' : 'global_chat';
+      var url = SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + messageId;
+      var res = await fetch(url, { method: 'DELETE', headers: SUPABASE_HEADERS });
+      if (res.status === 404) {
         removeMessageFromUI(messageId);
         showTemporaryNotification('✅ Message supprimé', true);
-      } catch (err) { console.error('Erreur suppression:', err); removeMessageFromUI(messageId); showTemporaryNotification('✅ Message retiré', true); }
+        return;
+      }
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      removeMessageFromUI(messageId);
+      showTemporaryNotification('✅ Message supprimé', true);
+    } catch (err) {
+      console.error('Erreur suppression:', err);
+      removeMessageFromUI(messageId);
+      showTemporaryNotification('✅ Message retiré', true);
     }
+  }
 
-    async function editChatMessage(messageId, newText, discordUserId) {
-      if (!discordUser) return;
-      const isAdmin = isAdminUser(discordUser.id);
-      const isOwner = discordUser.id === discordUserId;
-      if (!isAdmin && !isOwner) { showTemporaryNotification('❌ Vous ne pouvez pas modifier ce message'); return; }
-      newText = newText.trim();
-      if (!newText || newText.length > 500) { showTemporaryNotification('❌ Message invalide'); return; }
-      var badWordCheck = hasBadWords(newText);
-      if (badWordCheck.found && (badWordCheck.category === 'raciste' || badWordCheck.category === 'homophobe')) { showTemporaryNotification('❌ Message bloqué - contenu raciste/homophobe interdit'); return; }
-      var finalText = badWordCheck.found ? censorMessage(newText) : newText;
-      try {
-        var table = currentChatTab === 'private' ? 'private_messages' : 'global_chat';
-        var url = SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + messageId;
-        var res = await fetch(url, {
-          method: 'PATCH',
-          headers: Object.assign({}, SUPABASE_HEADERS, { 'Prefer': 'return=representation' }),
-          body: JSON.stringify({ message: finalText, is_edited: true }),
-        });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        var updated = await res.json();
-        if (updated && updated.length > 0) { updateMessageUI(messageId, finalText); showTemporaryNotification('✅ Message modifié', true); }
-      } catch (err) { console.error('Erreur modification:', err); showTemporaryNotification('❌ Erreur lors de la modification'); }
+  async function editChatMessage(messageId, newText, discordUserId) {
+    if (!discordUser) return;
+    var isAdmin = isAdminUser(discordUser.id);
+    var isOwner = discordUser.id === discordUserId;
+    if (!isAdmin && !isOwner) {
+      showTemporaryNotification('❌ Vous ne pouvez pas modifier ce message');
+      return;
     }
-
-    function updateMessageUI(messageId, finalText) {
-      var msgElement = document.querySelector('[data-msg-id="' + messageId + '"]');
-      if (msgElement) { var bubble = msgElement.querySelector('.chat-msg-bubble'); if (bubble) bubble.textContent = finalText; var timeElement = msgElement.querySelector('.chat-msg-time'); if (timeElement && !timeElement.textContent.includes('modifié')) timeElement.textContent = timeElement.textContent + ' modifié'; }
-      var msgIndex = chatMessages.findIndex(function (m) { return m.id === messageId; });
-      if (msgIndex !== -1) { chatMessages[msgIndex].message = finalText; chatMessages[msgIndex].is_edited = true; }
+    newText = newText.trim();
+    if (!newText || newText.length > 500) {
+      showTemporaryNotification('❌ Message invalide');
+      return;
     }
-
-    function addMessageActions() {
-      if (!discordUser) return;
-      document.querySelectorAll('.chat-msg').forEach(function (msgElement) {
-        if (msgElement.querySelector('.chat-msg-actions')) return;
-        var msgId = msgElement.dataset.msgId;
-        var msg = chatMessages.find(function (m) { return m.id === msgId; });
-        if (!msg) return;
-        var isAdmin = isAdminUser(discordUser.id);
-        var isOwner = discordUser.id === msg.discord_user_id || discordUser.id === msg.sender_id;
-        var mod = canModerate(discordUser.id);
-        if (!isAdmin && !isOwner && !mod) return;
-        var actionsDiv = document.createElement('div');
-        actionsDiv.className = 'chat-msg-actions';
-        actionsDiv.style.cssText = 'display: flex; gap: 4px; margin-top: 4px;';
-
-        // Bouton Message Privé
-        if (discordUser && msg.discord_user_id && msg.discord_user_id !== discordUser.id && currentChatTab !== 'private') {
-          var privateBtn = document.createElement('button');
-          privateBtn.className = 'chat-action-btn private';
-          privateBtn.textContent = '💬';
-          privateBtn.title = 'Message privé';
-          privateBtn.style.cssText = 'background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; transition: background 0.15s, color 0.15s;';
-          privateBtn.onmouseover = function () { this.style.background = 'rgba(88, 101, 242, 0.15)'; this.style.color = '#5865F2'; };
-          privateBtn.onmouseout = function () { this.style.background = 'none'; this.style.color = 'var(--text-dim)'; };
-          privateBtn.addEventListener('click', function (e) { e.stopPropagation(); startPrivateChat(msg.discord_user_id, msg.username); });
-          actionsDiv.appendChild(privateBtn);
-        }
-
-        if (isAdmin || mod) {
-          var viewBtn = document.createElement('button');
-          viewBtn.className = 'chat-action-btn';
-          viewBtn.textContent = '👁️';
-          viewBtn.title = "Voir l'original";
-          viewBtn.style.cssText = 'background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; transition: background 0.15s, color 0.15s;';
-          viewBtn.addEventListener('click', function (e) { e.stopPropagation(); if (msg.original_message) alert('Message original:\n' + msg.original_message + '\n\n(Message censuré affiché)'); else alert('Message original:\n' + msg.message); });
-          actionsDiv.appendChild(viewBtn);
-        }
-
-        if (isOwner || isAdmin || mod) {
-          var editBtn = document.createElement('button');
-          editBtn.className = 'chat-action-btn';
-          editBtn.textContent = '✏️';
-          editBtn.title = 'Modifier';
-          editBtn.style.cssText = 'background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; transition: background 0.15s, color 0.15s;';
-          editBtn.onmouseover = function () { this.style.background = 'rgba(255,255,255,0.05)'; this.style.color = 'var(--text)'; };
-          editBtn.onmouseout = function () { this.style.background = 'none'; this.style.color = 'var(--text-dim)'; };
-          editBtn.addEventListener('click', function (e) { e.stopPropagation(); var bubble = msgElement.querySelector('.chat-msg-bubble'); if (!bubble) return; var currentText = bubble.textContent; var newText = prompt('Modifier le message:', currentText); if (newText !== null && newText !== currentText) editChatMessage(msgId, newText, msg.discord_user_id || msg.sender_id); });
-          actionsDiv.appendChild(editBtn);
-        }
-
-        if (isOwner || isAdmin || mod) {
-          var deleteBtn = document.createElement('button');
-          deleteBtn.className = 'chat-action-btn delete';
-          deleteBtn.textContent = '🗑️';
-          deleteBtn.title = 'Supprimer';
-          deleteBtn.style.cssText = 'background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; transition: background 0.15s, color 0.15s;';
-          deleteBtn.onmouseover = function () { this.style.background = 'rgba(255,100,100,0.1)'; this.style.color = '#f87171'; };
-          deleteBtn.onmouseout = function () { this.style.background = 'none'; this.style.color = 'var(--text-dim)'; };
-          deleteBtn.addEventListener('click', function (e) { e.stopPropagation(); if (confirm('Supprimer ce message ?')) deleteChatMessage(msgId, msg.discord_user_id || msg.sender_id); });
-          actionsDiv.appendChild(deleteBtn);
-        }
-
-        if (isAdmin || mod) {
-          var banBtn = document.createElement('button');
-          banBtn.className = 'chat-action-btn ban';
-          banBtn.textContent = '🚫';
-          banBtn.title = 'Bannir l\'utilisateur';
-          banBtn.style.cssText = 'background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; transition: background 0.15s, color 0.15s;';
-          banBtn.onmouseover = function () { this.style.background = 'rgba(255,50,50,0.15)'; this.style.color = '#ff4444'; };
-          banBtn.onmouseout = function () { this.style.background = 'none'; this.style.color = 'var(--text-dim)'; };
-          banBtn.addEventListener('click', function (e) { e.stopPropagation(); var userToBan = msg.discord_user_id || msg.sender_id; var userName = msg.username || 'Inconnu'; var reason = prompt('Raison du bannissement de "' + userName + '" ?', 'Comportement inapproprié'); if (reason !== null && confirm('Bannir définitivement "' + userName + '" du chat ?')) { banChatUser(userToBan, reason); } });
-          actionsDiv.appendChild(banBtn);
-        }
-
-        if (actionsDiv.children.length > 0) { var contentDiv = msgElement.querySelector('.chat-msg-content'); if (contentDiv) contentDiv.appendChild(actionsDiv); }
+    var badWordCheck = hasBadWords(newText);
+    if (badWordCheck.found && (badWordCheck.category === 'raciste' || badWordCheck.category === 'homophobe')) {
+      showTemporaryNotification('❌ Message bloqué - contenu raciste/homophobe interdit');
+      return;
+    }
+    var finalText = badWordCheck.found ? censorMessage(newText) : newText;
+    try {
+      var table = currentChatTab === 'private' ? 'private_messages' : 'global_chat';
+      var url = SUPABASE_URL + '/rest/v1/' + table + '?id=eq.' + messageId;
+      var res = await fetch(url, {
+        method: 'PATCH',
+        headers: Object.assign({}, SUPABASE_HEADERS, { 'Prefer': 'return=representation' }),
+        body: JSON.stringify({ message: finalText, is_edited: true }),
       });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var updated = await res.json();
+      if (updated && updated.length > 0) {
+        updateMessageUI(messageId, finalText);
+        showTemporaryNotification('✅ Message modifié', true);
+      }
+    } catch (err) {
+      console.error('Erreur modification:', err);
+      showTemporaryNotification('❌ Erreur lors de la modification');
+    }
+  }
+
+  function updateMessageUI(messageId, finalText) {
+    var msgElement = document.querySelector('[data-msg-id="' + messageId + '"]');
+    if (msgElement) {
+      var bubble = msgElement.querySelector('.chat-msg-bubble');
+      if (bubble) bubble.textContent = finalText;
+      var timeElement = msgElement.querySelector('.chat-msg-time');
+      if (timeElement && !timeElement.textContent.includes('modifié')) {
+        timeElement.textContent = timeElement.textContent + ' modifié';
+      }
+    }
+    var msgIndex = chatMessages.findIndex(function (m) { return m.id === messageId; });
+    if (msgIndex !== -1) {
+      chatMessages[msgIndex].message = finalText;
+      chatMessages[msgIndex].is_edited = true;
+    }
+  }
+
+  function addMessageActions() {
+    if (!discordUser) return;
+    document.querySelectorAll('.chat-msg').forEach(function (msgElement) {
+      if (msgElement.querySelector('.chat-msg-actions')) return;
+
+      var msgId = msgElement.dataset.msgId;
+      var msg = chatMessages.find(function (m) { return m.id === msgId; });
+      if (!msg) return;
+
+      var isAdmin = isAdminUser(discordUser.id);
+      var isOwner = discordUser.id === msg.discord_user_id || discordUser.id === msg.sender_id;
+      var mod = canModerate(discordUser.id);
+      if (!isAdmin && !isOwner && !mod) return;
+
+      var actionsDiv = document.createElement('div');
+      actionsDiv.className = 'chat-msg-actions';
+      actionsDiv.style.cssText = 'display: flex; gap: 4px; margin-top: 4px;';
+
+      // Bouton Message Privé
+      if (discordUser && msg.discord_user_id && msg.discord_user_id !== discordUser.id && currentChatTab !== 'private') {
+        var privateBtn = document.createElement('button');
+        privateBtn.className = 'chat-action-btn private';
+        privateBtn.textContent = '💬';
+        privateBtn.title = 'Message privé';
+        privateBtn.style.cssText = 'background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; transition: background 0.15s, color 0.15s;';
+        privateBtn.onmouseover = function () {
+          this.style.background = 'rgba(88, 101, 242, 0.15)';
+          this.style.color = '#5865F2';
+        };
+        privateBtn.onmouseout = function () {
+          this.style.background = 'none';
+          this.style.color = 'var(--text-dim)';
+        };
+        privateBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          startPrivateChat(msg.discord_user_id, msg.username);
+        });
+        actionsDiv.appendChild(privateBtn);
+      }
+
+      if (isAdmin || mod) {
+        var viewBtn = document.createElement('button');
+        viewBtn.className = 'chat-action-btn';
+        viewBtn.textContent = '👁️';
+        viewBtn.title = "Voir l'original";
+        viewBtn.style.cssText = 'background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; transition: background 0.15s, color 0.15s;';
+        viewBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          if (msg.original_message) {
+            alert('Message original:\n' + msg.original_message + '\n\n(Message censuré affiché)');
+          } else {
+            alert('Message original:\n' + msg.message);
+          }
+        });
+        actionsDiv.appendChild(viewBtn);
+      }
+
+      if (isOwner || isAdmin || mod) {
+        var editBtn = document.createElement('button');
+        editBtn.className = 'chat-action-btn';
+        editBtn.textContent = '✏️';
+        editBtn.title = 'Modifier';
+        editBtn.style.cssText = 'background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; transition: background 0.15s, color 0.15s;';
+        editBtn.onmouseover = function () {
+          this.style.background = 'rgba(255,255,255,0.05)';
+          this.style.color = 'var(--text)';
+        };
+        editBtn.onmouseout = function () {
+          this.style.background = 'none';
+          this.style.color = 'var(--text-dim)';
+        };
+        editBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          var bubble = msgElement.querySelector('.chat-msg-bubble');
+          if (!bubble) return;
+          var currentText = bubble.textContent;
+          var newText = prompt('Modifier le message:', currentText);
+          if (newText !== null && newText !== currentText) {
+            editChatMessage(msgId, newText, msg.discord_user_id || msg.sender_id);
+          }
+        });
+        actionsDiv.appendChild(editBtn);
+      }
+
+      if (isOwner || isAdmin || mod) {
+        var deleteBtn = document.createElement('button');
+        deleteBtn.className = 'chat-action-btn delete';
+        deleteBtn.textContent = '🗑️';
+        deleteBtn.title = 'Supprimer';
+        deleteBtn.style.cssText = 'background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; transition: background 0.15s, color 0.15s;';
+        deleteBtn.onmouseover = function () {
+          this.style.background = 'rgba(255,100,100,0.1)';
+          this.style.color = '#f87171';
+        };
+        deleteBtn.onmouseout = function () {
+          this.style.background = 'none';
+          this.style.color = 'var(--text-dim)';
+        };
+        deleteBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          if (confirm('Supprimer ce message ?')) {
+            deleteChatMessage(msgId, msg.discord_user_id || msg.sender_id);
+          }
+        });
+        actionsDiv.appendChild(deleteBtn);
+      }
+
+      if (isAdmin || mod) {
+        var banBtn = document.createElement('button');
+        banBtn.className = 'chat-action-btn ban';
+        banBtn.textContent = '🚫';
+        banBtn.title = "Bannir l'utilisateur";
+        banBtn.style.cssText = 'background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; transition: background 0.15s, color 0.15s;';
+        banBtn.onmouseover = function () {
+          this.style.background = 'rgba(255,50,50,0.15)';
+          this.style.color = '#ff4444';
+        };
+        banBtn.onmouseout = function () {
+          this.style.background = 'none';
+          this.style.color = 'var(--text-dim)';
+        };
+        banBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          var userToBan = msg.discord_user_id || msg.sender_id;
+          var userName = msg.username || 'Inconnu';
+          var reason = prompt('Raison du bannissement de "' + userName + '" ?', 'Comportement inapproprié');
+          if (reason !== null && confirm('Bannir définitivement "' + userName + '" du chat ?')) {
+            banChatUser(userToBan, reason);
+          }
+        });
+        actionsDiv.appendChild(banBtn);
+      }
+
+      if (actionsDiv.children.length > 0) {
+        var contentDiv = msgElement.querySelector('.chat-msg-content');
+        if (contentDiv) contentDiv.appendChild(actionsDiv);
+      }
+    });
+  }
+
+  async function sendChatMessage() {
+    if (!discordUser || !chatInput) return;
+
+    var banned = await isUserBanned(discordUser.id);
+    if (banned) {
+      showTemporaryNotification('❌ Vous avez été banni du chat');
+      return;
     }
 
-    async function sendChatMessage() {
-      if (!discordUser || !chatInput) return;
-      var banned = await isUserBanned(discordUser.id);
-      if (banned) { showTemporaryNotification('❌ Vous avez été banni du chat'); return; }
-      var text = chatInput.value.trim();
-      if (!text || text.length > 500) return;
+    var text = chatInput.value.trim();
+    if (!text || text.length > 500) return;
 
-      // Message privé
-      if (currentChatTab === 'private' && currentPrivatePartner) {
-        var partnerName = 'Inconnu';
-        var partnerMsg = chatMessages.find(function (m) { return m.sender_id === currentPrivatePartner || m.receiver_id === currentPrivatePartner; });
-        if (partnerMsg) partnerName = partnerMsg.sender_id === currentPrivatePartner ? partnerMsg.sender_username : partnerMsg.receiver_username;
-        chatInput.value = ''; chatInput.style.height = 'auto'; chatSendBtn.disabled = true;
-        try {
-          var payload = { sender_id: discordUser.id, receiver_id: currentPrivatePartner, sender_username: getDiscordDisplayName(discordUser).slice(0, 32), receiver_username: partnerName, message: text.trim(), created_at: new Date().toISOString() };
-          var res = await fetch(SUPABASE_URL + '/rest/v1/private_messages', { method: 'POST', headers: Object.assign({}, SUPABASE_HEADERS, { 'Prefer': 'return=representation' }), body: JSON.stringify(payload) });
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          var created = await res.json();
-          if (created && created.length > 0) { var msg = created[0]; chatMessages.push(msg); renderMessagesForTab([msg], 'private'); scrollToBottom(); }
-        } catch (err) { console.error('Erreur envoi message privé:', err); showTemporaryNotification('❌ Erreur lors de l\'envoi du message privé'); }
-        finally { chatSendBtn.disabled = false; chatInput.focus(); }
-        return;
+    // Message privé
+    if (currentChatTab === 'private' && currentPrivatePartner) {
+      var partnerName = 'Inconnu';
+      var partnerMsg = chatMessages.find(function (m) {
+        return m.sender_id === currentPrivatePartner || m.receiver_id === currentPrivatePartner;
+      });
+      if (partnerMsg) {
+        partnerName = partnerMsg.sender_id === currentPrivatePartner ? partnerMsg.sender_username : partnerMsg.receiver_username;
       }
-
-      // Message public
-      var channel = currentChatTab;
-      var badWordCheck = hasBadWords(text);
-      if (badWordCheck.found && (badWordCheck.category === 'raciste' || badWordCheck.category === 'homophobe')) {
-        chatInput.value = '';
-        chatInput.placeholder = '❌ Message bloqué - contenu raciste/homophobe interdit';
-        chatInput.style.borderColor = '#f87171';
-        setTimeout(function () { chatInput.placeholder = window.i18n.t('chat.placeholder') || 'Écrire un message...'; chatInput.style.borderColor = ''; }, 3000);
-        return;
-      }
-      var finalText = text;
-      var warningMessage = '';
-      if (badWordCheck.found) { finalText = censorMessage(text); warningMessage = '⚠️ Message censuré (langage inapproprié)'; }
       chatInput.value = '';
       chatInput.style.height = 'auto';
       chatSendBtn.disabled = true;
       try {
-        var payload = { discord_user_id: discordUser.id, username: getDiscordDisplayName(discordUser).slice(0, 32), avatar_url: getDiscordAvatarUrl(discordUser), message: finalText, channel: channel, original_message: badWordCheck.found ? text : null, is_censored: badWordCheck.found };
-        var res = await fetch(SUPABASE_URL + '/rest/v1/global_chat', { method: 'POST', headers: Object.assign({}, SUPABASE_HEADERS, { 'Prefer': 'return=representation' }), body: JSON.stringify(payload) });
+        var payload = {
+          sender_id: discordUser.id,
+          receiver_id: currentPrivatePartner,
+          sender_username: getDiscordDisplayName(discordUser).slice(0, 32),
+          receiver_username: partnerName,
+          message: text.trim(),
+          created_at: new Date().toISOString()
+        };
+        var res = await fetch(SUPABASE_URL + '/rest/v1/private_messages', {
+          method: 'POST',
+          headers: Object.assign({}, SUPABASE_HEADERS, { 'Prefer': 'return=representation' }),
+          body: JSON.stringify(payload)
+        });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         var created = await res.json();
-        if (created && created.length > 0) { var msg = created[0]; var existingIds = new Set(chatMessages.map(function (m) { return m.id; })); if (!existingIds.has(msg.id)) { chatMessages.push(msg); renderMessagesForTab([msg], channel); scrollToBottom(); if (badWordCheck.found && warningMessage) showTemporaryNotification(warningMessage); } }
-      } catch (err) { console.error('Chat: erreur envoi', err); }
-      finally { chatSendBtn.disabled = false; chatInput.focus(); }
+        if (created && created.length > 0) {
+          var msg = created[0];
+          chatMessages.push(msg);
+          renderMessagesForTab([msg], 'private');
+          scrollToBottom();
+        }
+      } catch (err) {
+        console.error('Erreur envoi message privé:', err);
+        showTemporaryNotification('❌ Erreur lors de l\'envoi du message privé');
+      } finally {
+        chatSendBtn.disabled = false;
+        chatInput.focus();
+      }
+      return;
     }
 
-    function updateChatAuthState() {
-      if (discordUser) { if (chatInputArea) chatInputArea.removeAttribute('hidden'); if (chatLoginArea) chatLoginArea.setAttribute('hidden', ''); }
-      else { if (chatInputArea) chatInputArea.setAttribute('hidden', ''); if (chatLoginArea) chatLoginArea.removeAttribute('hidden'); }
+    // Message public
+    var channel = currentChatTab;
+    var badWordCheck = hasBadWords(text);
+    if (badWordCheck.found && (badWordCheck.category === 'raciste' || badWordCheck.category === 'homophobe')) {
+      chatInput.value = '';
+      chatInput.placeholder = '❌ Message bloqué - contenu raciste/homophobe interdit';
+      chatInput.style.borderColor = '#f87171';
+      setTimeout(function () {
+        chatInput.placeholder = window.i18n.t('chat.placeholder') || 'Écrire un message...';
+        chatInput.style.borderColor = '';
+      }, 3000);
+      return;
     }
 
-    function openChat() {
-      chatOpen = true;
-      chatWindow.removeAttribute('hidden');
-      if (chatBadge) chatBadge.setAttribute('hidden', '');
-      updateChatAuthState();
-      if (chatMessages.length === 0) { chatMessagesEl.innerHTML = '<p class="chat-loading">Chargement…</p>'; loadChatMessagesForTab(currentChatTab, currentPrivatePartner); }
-      else scrollToBottom();
-      if (!chatPollingInterval) chatPollingInterval = setInterval(function () { loadChatMessagesForTab(currentChatTab, currentPrivatePartner); }, 3000);
-      if (chatInput) chatInput.focus();
+    var finalText = text;
+    var warningMessage = '';
+    if (badWordCheck.found) {
+      finalText = censorMessage(text);
+      warningMessage = '⚠️ Message censuré (langage inapproprié)';
     }
 
-    function closeChat() {
-      chatOpen = false;
-      chatWindow.setAttribute('hidden', '');
-      if (chatPollingInterval) { clearInterval(chatPollingInterval); chatPollingInterval = null; }
-      if (currentChatTab === 'private') { currentChatTab = 'global'; currentPrivatePartner = null; switchChatTab('global'); }
+    chatInput.value = '';
+    chatInput.style.height = 'auto';
+    chatSendBtn.disabled = true;
+
+    try {
+      var payload = {
+        discord_user_id: discordUser.id,
+        username: getDiscordDisplayName(discordUser).slice(0, 32),
+        avatar_url: getDiscordAvatarUrl(discordUser),
+        message: finalText,
+        channel: channel,
+        original_message: badWordCheck.found ? text : null,
+        is_censored: badWordCheck.found,
+      };
+
+      var res = await fetch(SUPABASE_URL + '/rest/v1/global_chat', {
+        method: 'POST',
+        headers: Object.assign({}, SUPABASE_HEADERS, { 'Prefer': 'return=representation' }),
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var created = await res.json();
+
+      if (created && created.length > 0) {
+        var msg = created[0];
+        var existingIds = new Set(chatMessages.map(function (m) { return m.id; }));
+        if (!existingIds.has(msg.id)) {
+          chatMessages.push(msg);
+          renderMessagesForTab([msg], channel);
+          scrollToBottom();
+          if (badWordCheck.found && warningMessage) showTemporaryNotification(warningMessage);
+        }
+      }
+    } catch (err) {
+      console.error('Chat: erreur envoi', err);
+    } finally {
+      chatSendBtn.disabled = false;
+      chatInput.focus();
+    }
+  }
+
+  function updateChatAuthState() {
+    if (discordUser) {
+      if (chatInputArea) chatInputArea.removeAttribute('hidden');
+      if (chatLoginArea) chatLoginArea.setAttribute('hidden', '');
+    } else {
+      if (chatInputArea) chatInputArea.setAttribute('hidden', '');
+      if (chatLoginArea) chatLoginArea.removeAttribute('hidden');
+    }
+  }
+
+  function openChat() {
+    chatOpen = true;
+    var chatWindow = document.getElementById('chat-window');
+    if (!chatWindow) return;
+    chatWindow.removeAttribute('hidden');
+    if (chatBadge) chatBadge.setAttribute('hidden', '');
+    updateChatAuthState();
+
+    if (chatMessages.length === 0) {
+      chatMessagesEl.innerHTML = '<p class="chat-loading">Chargement…</p>';
+      loadChatMessagesForTab(currentChatTab, currentPrivatePartner);
+    } else {
+      scrollToBottom();
     }
 
-    chatBubble.addEventListener('click', function () { chatOpen ? closeChat() : openChat(); });
-    if (chatCloseBtn) chatCloseBtn.addEventListener('click', closeChat);
-    if (chatRefreshBtn) chatRefreshBtn.addEventListener('click', refreshChat);
-    if (chatSendBtn) chatSendBtn.addEventListener('click', sendChatMessage);
+    if (!chatPollingInterval) {
+      chatPollingInterval = setInterval(function () {
+        loadChatMessagesForTab(currentChatTab, currentPrivatePartner);
+      }, 3000);
+    }
+    if (chatInput) chatInput.focus();
+  }
+
+  function closeChat() {
+    chatOpen = false;
+    var chatWindow = document.getElementById('chat-window');
+    if (!chatWindow) return;
+    chatWindow.setAttribute('hidden', '');
+    if (chatPollingInterval) {
+      clearInterval(chatPollingInterval);
+      chatPollingInterval = null;
+    }
+    if (currentChatTab === 'private') {
+      currentChatTab = 'global';
+      currentPrivatePartner = null;
+      switchChatTab('global');
+    }
+  }
+
+  /* ── Initialisation du chat ── */
+  (function initChat() {
+    var chatBubble = document.getElementById('chat-bubble');
+    var chatWindow = document.getElementById('chat-window');
+    var chatCloseBtn = document.getElementById('chat-close-btn');
+    var chatRefreshBtn = document.getElementById('chat-refresh-btn');
+    var chatMessagesElement = document.getElementById('chat-messages');
+    var chatInputArea = document.getElementById('chat-input-area');
+    var chatLoginArea = document.getElementById('chat-login-area');
+    var chatInputElement = document.getElementById('chat-input');
+    var chatSendBtnElement = document.getElementById('chat-send-btn');
+    var chatWidgetLoginBtn = document.getElementById('chat-widget-login-btn');
+    var chatBadgeElement = document.getElementById('chat-badge');
+
+    // Assigner aux variables globales
+    chatMessagesEl = chatMessagesElement;
+    chatInput = chatInputElement;
+    chatSendBtn = chatSendBtnElement;
+    var chatBadge = chatBadgeElement;
+
+    if (!chatBubble || !chatWindow) return;
+
+    // ── Event Listeners ──
+    chatBubble.addEventListener('click', function () {
+      chatOpen ? closeChat() : openChat();
+    });
+
+    if (chatCloseBtn) {
+      chatCloseBtn.addEventListener('click', closeChat);
+    }
+
+    if (chatRefreshBtn) {
+      chatRefreshBtn.addEventListener('click', function () {
+        if (chatOpen && chatMessagesEl) {
+          if (chatRefreshBtn) chatRefreshBtn.classList.add('spinning');
+          chatMessagesEl.innerHTML = '<p class="chat-loading">Rechargement…</p>';
+          loadChatMessagesForTab(currentChatTab, currentPrivatePartner)
+            .then(function () {
+              if (chatRefreshBtn) chatRefreshBtn.classList.remove('spinning');
+            })
+            .catch(function () {
+              if (chatRefreshBtn) chatRefreshBtn.classList.remove('spinning');
+            });
+        }
+      });
+    }
+
+    if (chatSendBtn) {
+      chatSendBtn.addEventListener('click', sendChatMessage);
+    }
+
     if (chatInput) {
-      chatInput.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); } });
-      chatInput.addEventListener('input', function () { this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 80) + 'px'; });
+      chatInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendChatMessage();
+        }
+      });
+      chatInput.addEventListener('input', function () {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 80) + 'px';
+      });
     }
-    if (chatWidgetLoginBtn) chatWidgetLoginBtn.addEventListener('click', function () { startDiscordLogin(); });
+
+    if (chatWidgetLoginBtn) {
+      chatWidgetLoginBtn.addEventListener('click', function () {
+        startDiscordLogin();
+      });
+    }
 
     document.addEventListener('click', function (e) {
-      if (e.target.closest('#discord-login-btn') || e.target.closest('#discord-logout-btn')) { setTimeout(function () { updateChatAuthState(); if (chatOpen) refreshChat(); }, 200); }
+      if (e.target.closest('#discord-login-btn') || e.target.closest('#discord-logout-btn')) {
+        setTimeout(function () {
+          updateChatAuthState();
+          if (chatOpen) {
+            if (chatRefreshBtn) chatRefreshBtn.classList.add('spinning');
+            chatMessagesEl.innerHTML = '<p class="chat-loading">Rechargement…</p>';
+            loadChatMessagesForTab(currentChatTab, currentPrivatePartner)
+              .then(function () {
+                if (chatRefreshBtn) chatRefreshBtn.classList.remove('spinning');
+              })
+              .catch(function () {
+                if (chatRefreshBtn) chatRefreshBtn.classList.remove('spinning');
+              });
+          }
+        }, 200);
+      }
     });
 
     var _origHandleDiscordCallback = handleDiscordCallback;
-    handleDiscordCallback = function () { _origHandleDiscordCallback.apply(this, arguments); setTimeout(function () { updateChatAuthState(); if (chatOpen) refreshChat(); }, 300); };
+    handleDiscordCallback = function () {
+      _origHandleDiscordCallback.apply(this, arguments);
+      setTimeout(function () {
+        updateChatAuthState();
+        if (chatOpen) {
+          if (chatRefreshBtn) chatRefreshBtn.classList.add('spinning');
+          chatMessagesEl.innerHTML = '<p class="chat-loading">Rechargement…</p>';
+          loadChatMessagesForTab(currentChatTab, currentPrivatePartner)
+            .then(function () {
+              if (chatRefreshBtn) chatRefreshBtn.classList.remove('spinning');
+            })
+            .catch(function () {
+              if (chatRefreshBtn) chatRefreshBtn.classList.remove('spinning');
+            });
+        }
+      }, 300);
+    };
 
     var _origUpdateDiscordUI = updateDiscordUI;
-    updateDiscordUI = function () { _origUpdateDiscordUI(); updateChatAuthState(); };
+    updateDiscordUI = function () {
+      _origUpdateDiscordUI();
+      updateChatAuthState();
+    };
 
-    if (!chatWindow.hidden) openChat();
+    if (!chatWindow.hidden) {
+      openChat();
+    }
 
-    window.addEventListener('beforeunload', function () { if (chatPollingInterval) { clearInterval(chatPollingInterval); chatPollingInterval = null; } });
-    window.refreshChat = refreshChat;
+    window.addEventListener('beforeunload', function () {
+      if (chatPollingInterval) {
+        clearInterval(chatPollingInterval);
+        chatPollingInterval = null;
+      }
+    });
+
+    // Exposer les fonctions globalement
+    window.refreshChat = function () {
+      if (chatOpen && chatMessagesEl) {
+        if (chatRefreshBtn) chatRefreshBtn.classList.add('spinning');
+        chatMessagesEl.innerHTML = '<p class="chat-loading">Rechargement…</p>';
+        loadChatMessagesForTab(currentChatTab, currentPrivatePartner)
+          .then(function () {
+            if (chatRefreshBtn) chatRefreshBtn.classList.remove('spinning');
+          })
+          .catch(function () {
+            if (chatRefreshBtn) chatRefreshBtn.classList.remove('spinning');
+          });
+      }
+    };
     window.switchChatTab = switchChatTab;
     window.startPrivateChat = startPrivateChat;
 
